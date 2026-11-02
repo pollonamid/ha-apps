@@ -4,6 +4,7 @@
 - Compile the full set of speech-to-text families, so every entry in the model list works.
 - Offer the models in more than one precision: q8_0, q4_k, f16, f32 and bf16.
 - Add the language variants of the PocketTTS text-to-speech model in both precisions.
+- Replace the placeholder images with a text logo.
 
 ## 0.9.1
 
