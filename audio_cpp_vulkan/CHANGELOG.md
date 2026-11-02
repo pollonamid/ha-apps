@@ -1,4 +1,10 @@
 <!-- https://contributors.home-assistant.io/apps/guides/presentation/#changelog -->
+## 0.9.2
+
+- Compile the full set of speech-to-text families, so every entry in the model list works.
+- Offer the models in more than one precision: q8_0, q4_k, f16, f32 and bf16.
+- Add the language variants of the PocketTTS text-to-speech model in both precisions.
+
 ## 0.9.1
 
 - Fix the model dropdowns, the values were not separated correctly.

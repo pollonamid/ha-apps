@@ -3,7 +3,7 @@
 # Upstream: https://github.com/0xShug0/audio.cpp (Apache-2.0)
 ARG BUILD_FROM=ghcr.io/home-assistant/base-ubuntu:24.04
 ARG AUDIOCPP_VERSION=0.9.3
-ARG AUDIOCPP_MODELS=citrinet_asr,qwen3_asr,parakeet_tdt,moonshine_asr,sense_asr,canary_asr,pocket_tts
+ARG AUDIOCPP_MODELS=citrinet_asr,qwen3_asr,canary_asr,sense_asr,moonshine_asr,parakeet_tdt,whistle_asr,niagara_asr,granite5asr,hviske_asr,hviske_asr_v6,owsm,nemotron_asr,kroko_asr,fun_asr_nano,pocket_tts
 ARG WYO_VERSION=0.2.1-rc2
 
 FROM ubuntu:24.04 AS build

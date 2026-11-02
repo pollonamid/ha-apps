@@ -1,6 +1,6 @@
 # https://contributors.home-assistant.io/apps/reference/configuration/
 name: Audio.cpp Vulkan
-version: "0.9.1"
+version: "0.9.2"
 slug: audio_cpp_vulkan
 description: Local speech-to-text server with GPU acceleration through Vulkan.
 url: "https://github.com/pollonamid/ha-apps/tree/main/audio_cpp_vulkan"
@@ -40,18 +40,18 @@ options:
       task: asr
       url: ""
 schema:
-  model: "list(citrinet_asr_q8_0|moonshine_streaming_tiny_q8_0|owsm_v4_base_102m_q8_0|kroko_asr_community_q8_0|whistle_asr_f32|canary_180m_flash_q8_0|niagara_19m_f32|granite5asr_q8_0|parakeet_tdt_q8_0|nemotron_asr_q8_0|fun_asr_nano_2512_q8_0|qwen3_asr_0_6b_q8_0|sensevoice_small_q8|hviske_asr_q8_0)"
+  model: "list(citrinet_asr_q8_0|qwen3_asr_0_6b_q8_0|qwen3_asr_0_6b_f16|qwen3_asr_1_7b_q8_0|qwen3_asr_1_7b_f16|qwencleo_asr_q8_0|qwencleo_asr_f16|canary_180m_flash_q8_0|canary_180m_flash_f32|sensevoice_small_q8|moonshine_streaming_tiny_q8_0|moonshine_streaming_small_q8_0|moonshine_streaming_medium_q8_0|parakeet_tdt_q8_0|parakeet_tdt_f16|whistle_asr_f32|niagara_19m_f32|niagara_38m_f32|granite5asr_q8_0|hviske_asr_q8_0|hviske_asr_v6_q8_0|hviske_asr_v6_bf16|owsm_v4_small_370m_q8_0|owsm_v4_small_370m_q4_k|owsm_v4_small_370m_f32|owsm_v4_base_102m_q8_0|owsm_v4_base_102m_f32|owsm_v4_medium_1b_q8_0|owsm_v4_medium_1b_q4_k|owsm_v4_medium_1b_f32|nemotron_asr_q8_0|nemotron_asr_f16|kroko_asr_community_q8_0|fun_asr_nano_2512_q8_0|fun_asr_nano_2512_f16)"
   backend: "list(cpu|vulkan)"
   threads: "int(1,16)"
   max_loaded_models: "int(1,4)"
   auto_install_model: "bool"
   enable_tts: "bool"
-  tts_model: "list(pocket_tts_english_q8_0|pocket_tts_german_q8_0|pocket_tts_italian_q8_0|pocket_tts_spanish_q8_0|pocket_tts_portuguese_q8_0|pocket_tts_french_q8_0)"
+  tts_model: "list(pocket_tts_english_q8_0|pocket_tts_english_bf16|pocket_tts_german_q8_0|pocket_tts_german_bf16|pocket_tts_italian_q8_0|pocket_tts_italian_bf16|pocket_tts_spanish_q8_0|pocket_tts_spanish_bf16|pocket_tts_portuguese_q8_0|pocket_tts_portuguese_bf16|pocket_tts_french_q8_0|pocket_tts_french_bf16)"
   asr_language: "str"
   tts_voice: "str"
   hf_token: "password"
   extra_models:
-    - family: "list(citrinet_asr|qwen3_asr|parakeet_tdt|moonshine_asr|sense_asr|canary_asr|pocket_tts)"
+    - family: "list(citrinet_asr|qwen3_asr|canary_asr|sense_asr|moonshine_asr|parakeet_tdt|whistle_asr|niagara_asr|granite5asr|hviske_asr|hviske_asr_v6|owsm|nemotron_asr|kroko_asr|fun_asr_nano|pocket_tts)"
       task: "list(asr|tts)"
       url: str
 # The image is built and published to the registry by the workflow in

@@ -27,22 +27,66 @@
 
 The selected model is downloaded on the first start into `/share/audio_cpp/models` and kept there across restarts and updates. Nothing is downloaded again while the file is present.
 
-| Model id | Family | Approx. download size |
-| --- | --- | --- |
-| `citrinet_asr_q8_0` | citrinet_asr | ~39 MB |
-| `moonshine_streaming_tiny_q8_0` | moonshine_asr | ~58 MB |
-| `owsm_v4_base_102m_q8_0` | owsm | ~113 MB |
-| `kroko_asr_community_q8_0` | kroko_asr | ~160 MB |
-| `whistle_asr_f32` | whistle_asr | ~211 MB |
-| `canary_180m_flash_q8_0` | canary_asr | ~238 MB |
-| `niagara_19m_f32` | niagara_asr | ~244 MB |
-| `granite5asr_q8_0` | granite5asr | ~481 MB |
-| `parakeet_tdt_q8_0` | parakeet_tdt | ~873 MB |
-| `nemotron_asr_q8_0` | nemotron_asr | ~888 MB |
-| `fun_asr_nano_2512_q8_0` | fun_asr_nano | ~997 MB |
-| `qwen3_asr_0_6b_q8_0` | qwen3_asr | ~1098 MB |
-| `sensevoice_small_q8` | sense_asr | unknown |
-| `hviske_asr_q8_0` | hviske_asr | unknown |
+Every model that this build can load is listed in the `model` and `tts_model` options. The tables below show how large the download is.
+
+### Speech to text
+
+| Model id | Approx. download size |
+| --- | --- |
+| `citrinet_asr_q8_0` | 39 MB |
+| `moonshine_streaming_tiny_q8_0` | 58 MB |
+| `owsm_v4_base_102m_q8_0` | 113 MB |
+| `kroko_asr_community_q8_0` | 160 MB |
+| `whistle_asr_f32` | 211 MB |
+| `canary_180m_flash_q8_0` | 238 MB |
+| `sensevoice_small_q8` | 242 MB |
+| `niagara_19m_f32` | 244 MB |
+| `owsm_v4_small_370m_q4_k` | 283 MB |
+| `moonshine_streaming_small_q8_0` | 287 MB |
+| `moonshine_streaming_medium_q8_0` | 301 MB |
+| `owsm_v4_base_102m_f32` | 316 MB |
+| `niagara_38m_f32` | 407 MB |
+| `owsm_v4_small_370m_q8_0` | 412 MB |
+| `granite5asr_q8_0` | 481 MB |
+| `owsm_v4_medium_1b_q4_k` | 687 MB |
+| `canary_180m_flash_f32` | 723 MB |
+| `parakeet_tdt_q8_0` | 873 MB |
+| `nemotron_asr_q8_0` | 888 MB |
+| `fun_asr_nano_2512_q8_0` | 997 MB |
+| `qwen3_asr_0_6b_q8_0` | 1098 MB |
+| `owsm_v4_medium_1b_q8_0` | 1107 MB |
+| `parakeet_tdt_f16` | 1197 MB |
+| `nemotron_asr_f16` | 1219 MB |
+| `owsm_v4_small_370m_f32` | 1264 MB |
+| `hviske_asr_v6_q8_0` | 1574 MB |
+| `fun_asr_nano_2512_f16` | 1598 MB |
+| `qwen3_asr_0_6b_f16` | 1794 MB |
+| `hviske_asr_q8_0` | 2323 MB |
+| `qwen3_asr_1_7b_q8_0` | 2358 MB |
+| `qwencleo_asr_q8_0` | 2363 MB |
+| `hviske_asr_v6_bf16` | 2674 MB |
+| `owsm_v4_medium_1b_f32` | 3705 MB |
+| `qwen3_asr_1_7b_f16` | 3898 MB |
+| `qwencleo_asr_f16` | 3903 MB |
+
+### Text to speech
+
+| Model id | Approx. download size |
+| --- | --- |
+| `pocket_tts_german_q8_0` | 122 MB |
+| `pocket_tts_italian_q8_0` | 122 MB |
+| `pocket_tts_portuguese_q8_0` | 122 MB |
+| `pocket_tts_spanish_q8_0` | 122 MB |
+| `pocket_tts_english_q8_0` | 128 MB |
+| `pocket_tts_french_q8_0` | 128 MB |
+| `pocket_tts_german_bf16` | 209 MB |
+| `pocket_tts_italian_bf16` | 209 MB |
+| `pocket_tts_portuguese_bf16` | 209 MB |
+| `pocket_tts_spanish_bf16` | 209 MB |
+| `pocket_tts_english_bf16` | 215 MB |
+| `pocket_tts_french_bf16` | 215 MB |
+
+Most models come in more than one precision. `q8_0` is the smallest and fastest, `f16`, `f32` and `bf16` keep more of the original weights and are usually more accurate, and `q4_k` is the smallest of all at the cost of accuracy. A bigger model needs more memory and takes longer.
 
 Citrine is English only. Whisper-style models from llama.cpp or whisper.cpp cannot be used, audio.cpp uses its own GGUF layout.
 
