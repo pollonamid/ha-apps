@@ -104,6 +104,26 @@ installed_files() {
     ' "$(resolve_spec "${pkg}")"
 }
 
+# Run the model manager and log the download progress only every 5 percent,
+# it prints a line for every chunk otherwise.
+run_model_manager() {
+    stdbuf -oL -eL "${APP_DIR}/audiocpp_model_manager" "$@" 2>&1 | awk '
+        /^downloaded=[0-9]+ total=[0-9]+ / {
+            downloaded = substr($1, 12) + 0
+            total = substr($2, 7) + 0
+            if (total > 0) {
+                percent = int(downloaded * 100 / total)
+                if (percent >= threshold) {
+                    print
+                    threshold = (int(percent / 5) + 1) * 5
+                }
+            }
+            next
+        }
+        { print }
+    '
+}
+
 # Download a model from the catalog when it is missing.
 download_catalog_model() {
     local pkg="$1"
@@ -127,7 +147,7 @@ download_catalog_model() {
     fi
 
     bashio::log.info "Downloading model '${pkg}' into ${MODELS_DIR}. This can take a while."
-    if stdbuf -oL -eL "${APP_DIR}/audiocpp_model_manager" install "${pkg}" --models-dir "${MODELS_DIR}"; then
+    if run_model_manager install "${pkg}" --models-dir "${MODELS_DIR}"; then
         return 0
     fi
 
@@ -136,7 +156,7 @@ download_catalog_model() {
     if [[ -n "${hf_token}" && -f "${TOKEN_FILE}" ]]; then
         bashio::log.warning "The download failed, retrying without the Hugging Face token."
         mv "${TOKEN_FILE}" "${TOKEN_FILE}.disabled"
-        stdbuf -oL -eL "${APP_DIR}/audiocpp_model_manager" install "${pkg}" --models-dir "${MODELS_DIR}"
+        run_model_manager install "${pkg}" --models-dir "${MODELS_DIR}"
         local status=$?
         mv "${TOKEN_FILE}.disabled" "${TOKEN_FILE}"
         if [[ "${status}" -ne 0 ]]; then
