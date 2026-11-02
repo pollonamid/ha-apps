@@ -1,0 +1,49 @@
+---
+configuration:
+  model:
+    name: Modell
+    description: Das Spracherkennungsmodell, das verwendet wird. Es wird beim ersten Start heruntergeladen. Größere Modelle sind genauer, benötigen aber mehr Arbeitsspeicher.
+  backend:
+    name: Backend
+    description: Das verwendete Inferenz-Backend. Das Vulkan-Backend benötigt eine GPU und weicht auf die CPU aus, wenn keine Grafikkarte gefunden wird.
+  threads:
+    name: Threads
+    description: Die Anzahl der CPU-Threads, die für die Inferenz verwendet werden.
+  max_loaded_models:
+    name: Maximale Anzahl geladener Modelle
+    description: Wie viele Modelle gleichzeitig im Arbeitsspeicher geladen bleiben dürfen.
+  auto_install_model:
+    name: Automatischer Modelldownload
+    description: Das ausgewählte Modell automatisch herunterladen, wenn es fehlt.
+  enable_tts:
+    name: Sprachsynthese aktivieren
+    description: Aktiviert die Wyoming-Sprachsynthese und das Sprachsynthesemodell.
+  tts_model:
+    name: Sprachsynthesemodell
+    description: Das Sprachsynthesemodell, das verwendet wird. Es wird beim ersten Start heruntergeladen, wenn die Sprachsynthese aktiviert ist.
+  asr_language:
+    name: Sprache
+    description: Der Sprachhinweis, der mit der Transkriptionsanfrage gesendet wird. Mit "auto" entscheidet das Modell selbst.
+  tts_voice:
+    name: Stimme
+    description: Der Name der Stimme, die für die Sprachsynthese verwendet wird.
+  hf_token:
+    name: Hugging-Face-Token
+    description: Ein Hugging-Face-Zugriffstoken, der für eingeschränkte oder gesperrte Repositorys benötigt wird. Er wird in der App gespeichert und bei jedem Download verwendet, auch bei Modellen, die über die Weboberfläche installiert werden.
+  extra_models:
+    name: Zusätzliche Modelle
+    description: Zusätzliche Modelle von einer Hugging-Face-URL. Mit "Element hinzufügen" lassen sich mehrere hinzufügen. Die Modelle werden beim nächsten Start der App heruntergeladen und stehen danach in der Weboberfläche und der API zur Verfügung.
+    fields:
+      family:
+        name: Familie
+        description: Die audio.cpp-Modelfamilie.
+      task:
+        name: Aufgabe
+        description: Wofür das Modell verwendet wird, zum Beispiel asr für Sprache zu Text.
+      url:
+        name: URL
+        description: Die Adresse der .gguf-Datei auf Hugging Face.
+network:
+  "8099/tcp": Der Port für die Audio.cpp-HTTP-API (OpenAI-kompatibel).
+  "11301/tcp": Der Port für die Wyoming-Spracherkennung.
+  "11201/tcp": Der Port für die Wyoming-Sprachsynthese.

@@ -1,0 +1,90 @@
+# syntax=docker/dockerfile:1
+# Audio.cpp - local audio inference server for Home Assistant
+# Upstream: https://github.com/0xShug0/audio.cpp (Apache-2.0)
+ARG BUILD_FROM=ghcr.io/home-assistant/base-ubuntu:24.04
+ARG AUDIOCPP_VERSION=0.9.3
+ARG AUDIOCPP_MODELS=citrinet_asr,qwen3_asr,parakeet_tdt,moonshine_asr,sense_asr,canary_asr,pocket_tts
+ARG WYO_VERSION=0.2.1-rc2
+
+FROM ubuntu:24.04 AS build
+ARG AUDIOCPP_VERSION
+ARG AUDIOCPP_MODELS
+ARG WYO_VERSION
+ENV DEBIAN_FRONTEND=noninteractive
+ENV CC=gcc-14 \
+    CXX=g++-14
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        ca-certificates \
+        cmake \
+        curl \
+        g++-14 \
+        gcc-14 \
+        libgomp1 \
+        libssl-dev \
+        make \
+    && rm -rf /var/lib/apt/lists/*
+WORKDIR /src
+RUN curl -fsSL "https://github.com/0xShug0/audio.cpp/archive/refs/tags/v${AUDIOCPP_VERSION}.tar.gz" \
+        | tar xz --strip-components=1
+RUN mkdir -p /src/wyoming \
+    && curl -fsSL "https://github.com/m-abs/wyoming_audiocpp/archive/refs/tags/${WYO_VERSION}.tar.gz" \
+        | tar xz --strip-components=1 -C /src/wyoming \
+    && test -d /src/wyoming/wyoming_audiocpp_common \
+    && test -d /src/wyoming/wyoming_audiocpp_asr \
+    && test -d /src/wyoming/wyoming_audiocpp_tts \
+    && test -f /src/wyoming/wyoming_audiocpp_tts/params.json
+RUN cmake -S . -B build \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DAUDIOCPP_VERSION="${AUDIOCPP_VERSION}" \
+        -DAUDIOCPP_MODEL_SET=custom \
+        -DAUDIOCPP_MODELS="${AUDIOCPP_MODELS}" \
+        -DENGINE_ENABLE_CUDA=OFF \
+        -DENGINE_ENABLE_VULKAN=OFF \
+        -DENGINE_ENABLE_OPENMP=ON \
+        -DENGINE_ENABLE_NATIVE_CPU=OFF \
+        -DENGINE_ENABLE_CPU_ALL_VARIANTS=ON \
+        -DAUDIOCPP_BUILD_NATIVE_MODEL_MANAGER=ON \
+        -DAUDIOCPP_USE_SYSTEM_OPENSSL=ON \
+        -DAUDIOCPP_DEPLOYMENT_BUILD=ON \
+        -DENGINE_BUILD_EXAMPLES=OFF \
+        -DENGINE_BUILD_TESTS=OFF \
+        -DENGINE_BUILD_WARMBENCH=OFF \
+    && cmake --build build --parallel "$(nproc)" \
+        --target audiocpp_server \
+        --target audiocpp_model_manager
+# Runtime shared libraries (per-ISA ggml CPU backends) must sit next to the binary
+RUN mkdir -p /app && find build -name "*.so*" -exec cp -P {} /app/ \;
+
+FROM ${BUILD_FROM}
+ARG BUILD_FROM
+ARG AUDIOCPP_VERSION
+ENV DEBIAN_FRONTEND=noninteractive
+ENV PYTHONPATH="/app/wyoming" \
+    PYTHONUNBUFFERED=1
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        ffmpeg \
+        libgomp1 \
+        libssl3 \
+        libstdc++6 \
+        python3 \
+        python3-venv \
+    && rm -rf /var/lib/apt/lists/*
+RUN python3 -m venv /opt/wyoming \
+    && /opt/wyoming/bin/pip install --no-cache-dir --upgrade pip \
+    && /opt/wyoming/bin/pip install --no-cache-dir "wyoming>=1.10.2,<2" "requests>=2.31,<3"
+COPY --from=build /src/build/bin/audiocpp_server /app/audiocpp_server
+COPY --from=build /src/build/bin/audiocpp_model_manager /app/audiocpp_model_manager
+COPY --from=build /app/ /app/
+COPY --from=build /src/model_specs/ /app/model_specs/
+COPY --from=build /src/wyoming/wyoming_audiocpp_common /app/wyoming/wyoming_audiocpp_common
+COPY --from=build /src/wyoming/wyoming_audiocpp_asr /app/wyoming/wyoming_audiocpp_asr
+COPY --from=build /src/wyoming/wyoming_audiocpp_tts /app/wyoming/wyoming_audiocpp_tts
+WORKDIR /app
+LABEL \
+    org.opencontainers.image.title="Home Assistant App: Audio.cpp" \
+    org.opencontainers.image.description="Local speech-to-text server based on audio.cpp." \
+    org.opencontainers.image.source="https://github.com/pollonamid/ha-apps" \
+    org.opencontainers.image.licenses="Apache-2.0"
+EXPOSE 8099 11301 11201
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD curl -fsS http://127.0.0.1:8099/health || exit 1

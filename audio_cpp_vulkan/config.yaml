@@ -1,0 +1,59 @@
+# https://contributors.home-assistant.io/apps/reference/configuration/
+name: Audio.cpp Vulkan
+version: "0.9.1"
+slug: audio_cpp_vulkan
+description: Local speech-to-text server with GPU acceleration through Vulkan.
+url: "https://github.com/pollonamid/ha-apps/tree/main/audio_cpp_vulkan"
+arch:
+  - aarch64
+  - amd64
+init: false
+startup: services
+video: true
+ingress: true
+panel_icon: mdi:waveform
+panel_title: Audio.cpp
+panel_admin: false
+ports:
+  "8099/tcp": null
+  "11301/tcp": null
+  "11201/tcp": null
+ports_description:
+  "8099/tcp": "Audio.cpp HTTP API (OpenAI-compatible)"
+  "11301/tcp": "Wyoming speech-to-text"
+  "11201/tcp": "Wyoming text-to-speech"
+map:
+  - share:rw
+options:
+  model: citrinet_asr_q8_0
+  backend: vulkan
+  threads: 4
+  max_loaded_models: 1
+  auto_install_model: true
+  enable_tts: false
+  tts_model: pocket_tts_english_q8_0
+  asr_language: en
+  tts_voice: Alba
+  hf_token: ""
+  extra_models:
+    - family: citrinet_asr
+      task: asr
+      url: ""
+schema:
+  model: "list(citrinet_asr_q8_0|moonshine_streaming_tiny_q8_0|owsm_v4_base_102m_q8_0|kroko_asr_community_q8_0|whistle_asr_f32|canary_180m_flash_q8_0|niagara_19m_f32|granite5asr_q8_0|parakeet_tdt_q8_0|nemotron_asr_q8_0|fun_asr_nano_2512_q8_0|qwen3_asr_0_6b_q8_0|sensevoice_small_q8|hviske_asr_q8_0)"
+  backend: "list(cpu|vulkan)"
+  threads: "int(1,16)"
+  max_loaded_models: "int(1,4)"
+  auto_install_model: "bool"
+  enable_tts: "bool"
+  tts_model: "list(pocket_tts_english_q8_0|pocket_tts_german_q8_0|pocket_tts_italian_q8_0|pocket_tts_spanish_q8_0|pocket_tts_portuguese_q8_0|pocket_tts_french_q8_0)"
+  asr_language: "str"
+  tts_voice: "str"
+  hf_token: "password"
+  extra_models:
+    - family: "list(citrinet_asr|qwen3_asr|parakeet_tdt|moonshine_asr|sense_asr|canary_asr|pocket_tts)"
+      task: "list(asr|tts)"
+      url: str
+# The image is built and published to the registry by the workflow in
+# .github/workflows/builder.yaml.
+image: "ghcr.io/pollonamid/audio-cpp-vulkan"

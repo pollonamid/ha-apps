@@ -1,0 +1,14 @@
+# Local build artifacts
+*.tar.gz
+*.zip
+*.log
+
+# Editor / OS
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/tasks.json
+
+# Python
+__pycache__/
+*.py[cod]

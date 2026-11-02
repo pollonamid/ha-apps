@@ -1,0 +1,29 @@
+#!/usr/bin/with-contenv bashio
+# ==============================================================================
+# Start the Wyoming speech-to-text bridge
+# s6-overlay docs: https://github.com/just-containers/s6-overlay
+# ==============================================================================
+set -euo pipefail
+
+readonly CONFIG_DIR="/config"
+readonly APP_PORT="8099"
+readonly ASR_PORT="11301"
+
+export PYTHONPATH="/app/wyoming"
+
+model="$(bashio::config 'model')"
+language="$(bashio::config 'asr_language')"
+
+cat > "${CONFIG_DIR}/wyoming_asr.json" << EOF
+{
+  "audiocpp_uri": "http://127.0.0.1:${APP_PORT}",
+  "enable_zeroconf": false,
+  "log_level": "INFO",
+  "asr_uri": "tcp://0.0.0.0:${ASR_PORT}",
+  "asr_model": "${model}",
+  "asr_language": "${language}"
+}
+EOF
+
+bashio::log.info "Starting the Wyoming ASR bridge on port ${ASR_PORT}."
+exec /opt/wyoming/bin/python -m wyoming_audiocpp_asr --config "${CONFIG_DIR}/wyoming_asr.json"

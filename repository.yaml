@@ -1,0 +1,4 @@
+# https://contributors.home-assistant.io/apps/guides/repository/#create-the-repository
+name: Pollonamid's Home Assistant Apps
+url: 'https://github.com/pollonamid/ha-apps'
+maintainer: pollonamid

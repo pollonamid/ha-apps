@@ -1,0 +1,61 @@
+#!/usr/bin/with-contenv bashio
+# ==============================================================================
+# Start the Wyoming text-to-speech bridge
+# s6-overlay docs: https://github.com/just-containers/s6-overlay
+# ==============================================================================
+set -euo pipefail
+
+readonly CONFIG_DIR="/config"
+readonly MODELS_DIR="/share/audio_cpp/models"
+readonly SPEC_DIR="/app/model_specs"
+readonly APP_PORT="8099"
+readonly TTS_PORT="11201"
+
+export PYTHONPATH="/app/wyoming"
+
+if [[ "$(bashio::config 'enable_tts')" != "true" ]]; then
+    bashio::log.info "Text-to-speech is disabled. Enable it in the app options to use the Wyoming TTS bridge."
+    exec sleep infinity
+fi
+
+tts_model="$(bashio::config 'tts_model')"
+tts_voice="$(bashio::config 'tts_voice')"
+
+target_dir=""
+for candidate in "${SPEC_DIR}"/*.json; do
+    if jq -e --arg id "${tts_model}" '.packages[]? | select(.id == $id)' "${candidate}" > /dev/null 2>&1; then
+        target_dir="$(jq -r --arg id "${tts_model}" '.packages[] | select(.id == $id) | .target_directory' "${candidate}")"
+        break
+    fi
+done
+
+voice_file=""
+if [[ -n "${target_dir}" ]]; then
+    for candidate in "${MODELS_DIR}/${target_dir}"/embeddings/*.safetensors; do
+        [[ -e "${candidate}" ]] || continue
+        if [[ "$(basename "${candidate}" .safetensors)" == "${tts_voice,,}" ]]; then
+            voice_file="${candidate}"
+            break
+        fi
+    done
+fi
+
+jq -n \
+    --arg uri "http://127.0.0.1:${APP_PORT}" \
+    --arg tts_uri "tcp://0.0.0.0:${TTS_PORT}" \
+    --arg model "${tts_model}" \
+    --arg voice "${tts_voice}" \
+    --arg embedding "${voice_file}" \
+    '{
+        audiocpp_uri: $uri,
+        enable_zeroconf: false,
+        log_level: "INFO",
+        tts_uri: $tts_uri,
+        tts_voices: [
+            ({ model: $model, name: $voice }
+             + (if $embedding == "" then {} else { options: { voice_embedding_file: $embedding } } end))
+        ]
+    }' > "${CONFIG_DIR}/wyoming_tts.json"
+
+bashio::log.info "Starting the Wyoming TTS bridge on port ${TTS_PORT}."
+exec /opt/wyoming/bin/python -m wyoming_audiocpp_tts --config "${CONFIG_DIR}/wyoming_tts.json"
