@@ -1,4 +1,9 @@
 <!-- https://contributors.home-assistant.io/apps/guides/presentation/#changelog -->
+## 0.9.4
+
+- Fix the app halting on start. bashio::config returns the elements of a list one after another, so the extra models are now read from the options file.
+- Write the log of the server and the Wyoming bridges line by line, so it shows up right away and is not mixed up with the output of the other services.
+
 ## 0.9.3
 
 - Download the models in the background, so a slow download no longer keeps the app from starting. The Supervisor only allows 120 seconds for an app to report that it started.

@@ -30,7 +30,9 @@ threads="$(option 'threads')"
 max_loaded_models="$(option 'max_loaded_models')"
 auto_install_model="$(option 'auto_install_model')"
 hf_token="$(option 'hf_token')"
-extra_models_json="$(option 'extra_models')"
+# bashio::config returns the elements of a list one after another, so the
+# list of extra models is read from the options file directly.
+extra_models_json="$(jq -c '.extra_models // []' /data/options.json 2> /dev/null || echo '[]')"
 
 # The token is stored in a file, because the server reads it from there for
 # every download. That way it also works for the models the web interface
@@ -125,7 +127,7 @@ download_catalog_model() {
     fi
 
     bashio::log.info "Downloading model '${pkg}' into ${MODELS_DIR}. This can take a while."
-    if "${APP_DIR}/audiocpp_model_manager" install "${pkg}" --models-dir "${MODELS_DIR}"; then
+    if stdbuf -oL -eL "${APP_DIR}/audiocpp_model_manager" install "${pkg}" --models-dir "${MODELS_DIR}"; then
         return 0
     fi
 
@@ -134,7 +136,7 @@ download_catalog_model() {
     if [[ -n "${hf_token}" && -f "${TOKEN_FILE}" ]]; then
         bashio::log.warning "The download failed, retrying without the Hugging Face token."
         mv "${TOKEN_FILE}" "${TOKEN_FILE}.disabled"
-        "${APP_DIR}/audiocpp_model_manager" install "${pkg}" --models-dir "${MODELS_DIR}"
+        stdbuf -oL -eL "${APP_DIR}/audiocpp_model_manager" install "${pkg}" --models-dir "${MODELS_DIR}"
         local status=$?
         mv "${TOKEN_FILE}.disabled" "${TOKEN_FILE}"
         if [[ "${status}" -ne 0 ]]; then
@@ -349,6 +351,9 @@ jq -n \
 ) &
 
 bashio::log.info "Starting audiocpp_server on port ${PORT} with the ${backend} backend."
-exec "${APP_DIR}/audiocpp_server" \
+bashio::log.info "Models are in ${MODELS_DIR}, the configuration is in ${CONFIG_DIR}."
+# Line buffered, so the log of the server shows up right away and does not end
+# up mixed up with the output of the other services.
+exec stdbuf -oL -eL "${APP_DIR}/audiocpp_server" \
     --config "${CONFIG_DIR}/server.json" \
     --model-spec-override "${SPEC_DIR}"

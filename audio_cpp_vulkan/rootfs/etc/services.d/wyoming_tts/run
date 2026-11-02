@@ -58,4 +58,5 @@ jq -n \
     }' > "${CONFIG_DIR}/wyoming_tts.json"
 
 bashio::log.info "Starting the Wyoming TTS bridge on port ${TTS_PORT}."
-exec /opt/wyoming/bin/python -m wyoming_audiocpp_tts --config "${CONFIG_DIR}/wyoming_tts.json"
+# Unbuffered, so the log shows up right away.
+exec /opt/wyoming/bin/python -u -m wyoming_audiocpp_tts --config "${CONFIG_DIR}/wyoming_tts.json"

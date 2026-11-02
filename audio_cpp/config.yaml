@@ -1,6 +1,6 @@
 # https://contributors.home-assistant.io/apps/reference/configuration/
 name: Audio.cpp
-version: "0.9.3"
+version: "0.9.4"
 slug: audio_cpp
 description: Local speech-to-text server with an OpenAI-compatible API.
 url: "https://github.com/pollonamid/ha-apps/tree/main/audio_cpp"

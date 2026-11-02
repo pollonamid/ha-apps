@@ -26,4 +26,5 @@ cat > "${CONFIG_DIR}/wyoming_asr.json" << EOF
 EOF
 
 bashio::log.info "Starting the Wyoming ASR bridge on port ${ASR_PORT}."
-exec /opt/wyoming/bin/python -m wyoming_audiocpp_asr --config "${CONFIG_DIR}/wyoming_asr.json"
+# Unbuffered, so the log shows up right away.
+exec /opt/wyoming/bin/python -u -m wyoming_audiocpp_asr --config "${CONFIG_DIR}/wyoming_asr.json"
