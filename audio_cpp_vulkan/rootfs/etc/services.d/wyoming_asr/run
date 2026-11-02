@@ -21,21 +21,31 @@ model="$(option 'model')"
 language="$(option 'asr_language')"
 enable_zeroconf="$(option 'enable_zeroconf')"
 
-# Bind to the name of the container. Home Assistant announces and finds the
-# service with that name, so it has to be one it can resolve.
-host="$(hostname)"
+# The service is announced over mDNS under a fixed name. The address in the
+# announcement is detected by the library, the name has to be one Home
+# Assistant can resolve.
 
 cat > "${CONFIG_DIR}/wyoming_asr.json" << EOF
 {
   "audiocpp_uri": "http://127.0.0.1:${APP_PORT}",
   "enable_zeroconf": ${enable_zeroconf},
   "log_level": "INFO",
-  "asr_uri": "tcp://${host}:${ASR_PORT}",
+  "asr_uri": "tcp://0.0.0.0:${ASR_PORT}",
   "asr_model": "${model}",
   "asr_language": "${language}"
 }
 EOF
 
-bashio::log.info "Starting the Wyoming ASR bridge on port ${ASR_PORT}, announced as ${host}."
+# The bind uri can only be set on the command line, the default of the
+# argument overrides the config file.
+zeroconf_args=()
+if [[ "${enable_zeroconf}" == "true" ]]; then
+    zeroconf_args=(--zeroconf)
+fi
+
+bashio::log.info "Starting the Wyoming ASR bridge on port ${ASR_PORT}, announced over mDNS as wyoming-audiocpp-asr."
 # Unbuffered, so the log shows up right away.
-exec /opt/wyoming/bin/python -u -m wyoming_audiocpp_asr --config "${CONFIG_DIR}/wyoming_asr.json"
+exec /opt/wyoming/bin/python -u -m wyoming_audiocpp_asr \
+    --config "${CONFIG_DIR}/wyoming_asr.json" \
+    --asr-uri "tcp://0.0.0.0:${ASR_PORT}" \
+    "${zeroconf_args[@]}"

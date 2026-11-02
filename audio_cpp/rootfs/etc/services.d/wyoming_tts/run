@@ -28,9 +28,9 @@ tts_model="$(option 'tts_model')"
 tts_voice="$(option 'tts_voice')"
 enable_zeroconf="$(option 'enable_zeroconf')"
 
-# Bind to the name of the container. Home Assistant announces and finds the
-# service with that name, so it has to be one it can resolve.
-host="$(hostname)"
+# The service is announced over mDNS under a fixed name. The address in the
+# announcement is detected by the library, the name has to be one Home
+# Assistant can resolve.
 
 target_dir=""
 for candidate in "${SPEC_DIR}"/*.json; do
@@ -53,7 +53,7 @@ fi
 
 jq -n \
     --arg uri "http://127.0.0.1:${APP_PORT}" \
-    --arg tts_uri "tcp://${host}:${TTS_PORT}" \
+    --arg tts_uri "tcp://0.0.0.0:${TTS_PORT}" \
     --arg model "${tts_model}" \
     --arg voice "${tts_voice}" \
     --arg embedding "${voice_file}" \
@@ -69,6 +69,16 @@ jq -n \
         ]
     }' > "${CONFIG_DIR}/wyoming_tts.json"
 
-bashio::log.info "Starting the Wyoming TTS bridge on port ${TTS_PORT}, announced as ${host}."
+# The bind uri can only be set on the command line, the default of the
+# argument overrides the config file.
+zeroconf_args=()
+if [[ "${enable_zeroconf}" == "true" ]]; then
+    zeroconf_args=(--zeroconf)
+fi
+
+bashio::log.info "Starting the Wyoming TTS bridge on port ${TTS_PORT}, announced over mDNS as wyoming-audiocpp-tts."
 # Unbuffered, so the log shows up right away.
-exec /opt/wyoming/bin/python -u -m wyoming_audiocpp_tts --config "${CONFIG_DIR}/wyoming_tts.json"
+exec /opt/wyoming/bin/python -u -m wyoming_audiocpp_tts \
+    --config "${CONFIG_DIR}/wyoming_tts.json" \
+    --tts-uri "tcp://0.0.0.0:${TTS_PORT}" \
+    "${zeroconf_args[@]}"
