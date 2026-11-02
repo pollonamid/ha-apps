@@ -1,4 +1,9 @@
 <!-- https://contributors.home-assistant.io/apps/guides/presentation/#changelog -->
+## 0.9.3
+
+- Download the models in the background, so a slow download no longer keeps the app from starting. The Supervisor only allows 120 seconds for an app to report that it started.
+- Check the health of the app every 10 seconds instead of every 30, and start checking after 15 seconds.
+
 ## 0.9.2
 
 - Compile the full set of speech-to-text families, so every entry in the model list works.

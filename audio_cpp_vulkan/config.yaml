@@ -1,6 +1,6 @@
 # https://contributors.home-assistant.io/apps/reference/configuration/
 name: Audio.cpp Vulkan
-version: "0.9.2"
+version: "0.9.3"
 slug: audio_cpp_vulkan
 description: Local speech-to-text server with GPU acceleration through Vulkan.
 url: "https://github.com/pollonamid/ha-apps/tree/main/audio_cpp_vulkan"

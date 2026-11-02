@@ -96,5 +96,5 @@ LABEL \
     org.opencontainers.image.source="https://github.com/pollonamid/ha-apps" \
     org.opencontainers.image.licenses="Apache-2.0"
 EXPOSE 8099 11301 11201
-HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+HEALTHCHECK --interval=10s --timeout=5s --start-period=15s --retries=12 \
     CMD curl -fsS http://127.0.0.1:8099/health || exit 1

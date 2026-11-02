@@ -27,6 +27,8 @@
 
 The selected model is downloaded on the first start into `/share/audio_cpp/models` and kept there across restarts and updates. Nothing is downloaded again while the file is present.
 
+The download runs in the background, so the app is ready right away. The model is loaded when it is used for the first time, which takes a moment longer while the download is still running.
+
 Every model that this build can load is listed in the `model` and `tts_model` options. The tables below show how large the download is.
 
 ### Speech to text

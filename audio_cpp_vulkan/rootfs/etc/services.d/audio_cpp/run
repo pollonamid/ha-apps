@@ -62,14 +62,17 @@ resolve_spec() {
     return 1
 }
 
-# Download the model when it is missing. Sets MODEL_FILE and MODEL_DIR.
+# Resolve a model package to its family and the path it is installed to. The
+# model itself is not downloaded here, that happens in the background so that
+# a slow download does not hold up the start of the app.
 MODEL_FILE=""
 MODEL_DIR=""
-install_model() {
+MODEL_FAMILY=""
+resolve_model() {
     local pkg="$1"
     local spec_file
     local target_dir
-    local gguf
+    local file_name
 
     if ! spec_file="$(resolve_spec "${pkg}")"; then
         bashio::log.fatal "Unknown model '${pkg}'. Pick one of the models listed in the app options."
@@ -77,50 +80,92 @@ install_model() {
     fi
 
     target_dir="$(jq -r --arg id "${pkg}" '.packages[] | select(.id == $id) | .target_directory' "${spec_file}")"
+    file_name="$(jq -r --arg id "${pkg}" '.packages[] | select(.id == $id) | .files[0] | split("/") | last' "${spec_file}")"
+    MODEL_FAMILY="$(basename "${spec_file}" .json)"
     MODEL_DIR="${MODELS_DIR}/${target_dir}"
-    gguf="$(find "${MODEL_DIR}" -maxdepth 1 -name '*.gguf' -print -quit 2> /dev/null || true)"
-
-    if [[ -z "${gguf}" ]]; then
-        if [[ "${auto_install_model}" != "true" ]]; then
-            bashio::log.fatal "Model '${pkg}' is missing in ${MODELS_DIR} and the automatic download is disabled."
-            exit 1
-        fi
-        bashio::log.info "Downloading model '${pkg}' into ${MODELS_DIR}. This can take a while."
-        if ! "${APP_DIR}/audiocpp_model_manager" install "${pkg}" --models-dir "${MODELS_DIR}"; then
-            # Hugging Face rejects public downloads with an invalid token, so
-            # try again without it.
-            if [[ -n "${hf_token}" && -f "${TOKEN_FILE}" ]]; then
-                bashio::log.warning "The download failed, retrying without the Hugging Face token."
-                mv "${TOKEN_FILE}" "${TOKEN_FILE}.disabled"
-                if ! "${APP_DIR}/audiocpp_model_manager" install "${pkg}" --models-dir "${MODELS_DIR}"; then
-                    mv "${TOKEN_FILE}.disabled" "${TOKEN_FILE}"
-                    bashio::log.fatal "Could not download the model '${pkg}'."
-                    exit 1
-                fi
-                mv "${TOKEN_FILE}.disabled" "${TOKEN_FILE}"
-            else
-                bashio::log.fatal "Could not download the model '${pkg}'."
-                exit 1
-            fi
-        fi
-        gguf="$(find "${MODEL_DIR}" -maxdepth 1 -name '*.gguf' -print -quit)"
+    MODEL_FILE="$(find "${MODEL_DIR}" -maxdepth 1 -name '*.gguf' -print -quit 2> /dev/null || true)"
+    if [[ -z "${MODEL_FILE}" ]]; then
+        # The model is not on disk yet, this is where it will land.
+        MODEL_FILE="${MODEL_DIR}/${file_name}"
     fi
-
-    MODEL_FILE="${gguf}"
 }
 
-# Voice presets for models that ship voice embeddings, such as PocketTTS
+# The files of a package are installed relative to its target directory, with
+# the strip_prefix removed from the front.
+installed_files() {
+    local pkg="$1"
+    jq -r --arg id "${pkg}" '
+        (.packages[] | select(.id == $id)) as $p
+        | ($p.strip_prefix // "") as $sp
+        | $p.files[]
+        | if ($sp != "" and startswith($sp + "/")) then ltrimstr($sp + "/") else . end
+    ' "$(resolve_spec "${pkg}")"
+}
+
+# Download a model from the catalog when it is missing.
+download_catalog_model() {
+    local pkg="$1"
+    local spec_file
+    local target_dir
+    local gguf
+
+    if ! spec_file="$(resolve_spec "${pkg}")"; then
+        return 1
+    fi
+
+    target_dir="$(jq -r --arg id "${pkg}" '.packages[] | select(.id == $id) | .target_directory' "${spec_file}")"
+    gguf="$(find "${MODELS_DIR}/${target_dir}" -maxdepth 1 -name '*.gguf' -print -quit 2> /dev/null || true)"
+    if [[ -n "${gguf}" ]]; then
+        return 0
+    fi
+
+    if [[ "${auto_install_model}" != "true" ]]; then
+        bashio::log.warning "Model '${pkg}' is missing in ${MODELS_DIR} and the automatic download is disabled."
+        return 1
+    fi
+
+    bashio::log.info "Downloading model '${pkg}' into ${MODELS_DIR}. This can take a while."
+    if "${APP_DIR}/audiocpp_model_manager" install "${pkg}" --models-dir "${MODELS_DIR}"; then
+        return 0
+    fi
+
+    # Hugging Face rejects public downloads with an invalid token, so
+    # try again without it.
+    if [[ -n "${hf_token}" && -f "${TOKEN_FILE}" ]]; then
+        bashio::log.warning "The download failed, retrying without the Hugging Face token."
+        mv "${TOKEN_FILE}" "${TOKEN_FILE}.disabled"
+        "${APP_DIR}/audiocpp_model_manager" install "${pkg}" --models-dir "${MODELS_DIR}"
+        local status=$?
+        mv "${TOKEN_FILE}.disabled" "${TOKEN_FILE}"
+        if [[ "${status}" -ne 0 ]]; then
+            bashio::log.error "Could not download the model '${pkg}'."
+            return 1
+        fi
+        return 0
+    fi
+
+    bashio::log.error "Could not download the model '${pkg}'."
+    return 1
+}
+
+# Voice presets for models that ship voice embeddings, such as PocketTTS. They
+# are taken from the model spec, so they are known before the model is
+# downloaded.
 voice_presets() {
-    local dir="$1"
+    local pkg="$1"
+    local target_dir="$2"
     local result='{}'
-    local file
+    local relative
     local name
-    shopt -s nullglob
-    for file in "${dir}"/embeddings/*.safetensors; do
-        name="$(basename "${file}" .safetensors)"
-        result="$(jq --arg n "${name}" --arg p "${file}" '. + {($n): {options: {voice_embedding_file: $p}}}' <<< "${result}")"
-    done
-    shopt -u nullglob
+    while IFS= read -r relative; do
+        case "${relative}" in
+            embeddings/*.safetensors)
+                name="$(basename "${relative}" .safetensors)"
+                result="$(jq --arg n "${name}" --arg p "${target_dir}/${relative}" \
+                    '. + {($n): {options: {voice_embedding_file: $p}}}' <<< "${result}")"
+                ;;
+        esac
+    done < <(installed_files "${pkg}")
     printf '%s' "${result}"
 }
 
@@ -186,6 +231,8 @@ download_extra_model() {
 }
 
 # Models that were added by URL in the app configuration
+pending_catalog_downloads=()
+pending_extra_downloads=()
 custom_models='[]'
 if [[ -n "${extra_models_json}" && "${extra_models_json}" != "null" ]]; then
     extra_count="$(jq 'length' <<< "${extra_models_json}" 2> /dev/null || echo 0)"
@@ -204,9 +251,7 @@ if [[ -n "${extra_models_json}" && "${extra_models_json}" != "null" ]]; then
         extra_path="${CUSTOM_DIR}/${file_name}"
 
         if [[ ! -s "${extra_path}" ]]; then
-            if ! download_extra_model "${extra_url}" "${extra_path}"; then
-                continue
-            fi
+            pending_extra_downloads+=("${extra_url}|${extra_path}")
         fi
 
         extra_spec=""
@@ -223,19 +268,21 @@ if [[ -n "${extra_models_json}" && "${extra_models_json}" != "null" ]]; then
     done
 fi
 
-install_model "${model}"
-asr_family="$(basename "$(resolve_spec "${model}")" .json)"
+resolve_model "${model}"
+asr_family="${MODEL_FAMILY}"
 asr_path="${MODEL_FILE}"
+pending_catalog_downloads+=("${model}")
 
 use_tts="false"
 tts_family=""
 tts_path=""
 tts_presets='{}'
 if [[ "${enable_tts}" == "true" ]]; then
-    install_model "${tts_model}"
-    tts_family="$(basename "$(resolve_spec "${tts_model}")" .json)"
+    resolve_model "${tts_model}"
+    tts_family="${MODEL_FAMILY}"
     tts_path="${MODEL_FILE}"
-    tts_presets="$(voice_presets "${MODEL_DIR}")"
+    tts_presets="$(voice_presets "${tts_model}" "${MODEL_DIR}")"
+    pending_catalog_downloads+=("${tts_model}")
     use_tts="true"
 fi
 
@@ -288,6 +335,18 @@ jq -n \
             + $custom_models
         )
     }' > "${CONFIG_DIR}/server.json"
+
+# Download the models in the background. The server starts right away and
+# loads a model on demand, so a slow download does not hold up the start of the
+# app. The Supervisor allows an app 120 seconds to report that it started.
+(
+    for pkg in "${pending_catalog_downloads[@]}"; do
+        download_catalog_model "${pkg}" || true
+    done
+    for entry in "${pending_extra_downloads[@]}"; do
+        download_extra_model "${entry%%|*}" "${entry##*|}" || true
+    done
+) &
 
 bashio::log.info "Starting audiocpp_server on port ${PORT} with the ${backend} backend."
 exec "${APP_DIR}/audiocpp_server" \
