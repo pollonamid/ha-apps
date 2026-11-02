@@ -11,20 +11,31 @@ readonly ASR_PORT="11301"
 
 export PYTHONPATH="/app/wyoming"
 
-model="$(bashio::config 'model')"
-language="$(bashio::config 'asr_language')"
+# bashio::config asks the Supervisor for the default of an empty option, which
+# is not needed here.
+option() {
+    bashio::config "${1}" 2> /dev/null || true
+}
+
+model="$(option 'model')"
+language="$(option 'asr_language')"
+enable_zeroconf="$(option 'enable_zeroconf')"
+
+# Bind to the name of the container. Home Assistant announces and finds the
+# service with that name, so it has to be one it can resolve.
+host="$(hostname)"
 
 cat > "${CONFIG_DIR}/wyoming_asr.json" << EOF
 {
   "audiocpp_uri": "http://127.0.0.1:${APP_PORT}",
-  "enable_zeroconf": false,
+  "enable_zeroconf": ${enable_zeroconf},
   "log_level": "INFO",
-  "asr_uri": "tcp://0.0.0.0:${ASR_PORT}",
+  "asr_uri": "tcp://${host}:${ASR_PORT}",
   "asr_model": "${model}",
   "asr_language": "${language}"
 }
 EOF
 
-bashio::log.info "Starting the Wyoming ASR bridge on port ${ASR_PORT}."
+bashio::log.info "Starting the Wyoming ASR bridge on port ${ASR_PORT}, announced as ${host}."
 # Unbuffered, so the log shows up right away.
 exec /opt/wyoming/bin/python -u -m wyoming_audiocpp_asr --config "${CONFIG_DIR}/wyoming_asr.json"

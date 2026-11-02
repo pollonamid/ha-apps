@@ -1,6 +1,6 @@
 # https://contributors.home-assistant.io/apps/reference/configuration/
 name: Audio.cpp Vulkan
-version: "0.9.4"
+version: "0.9.5"
 slug: audio_cpp_vulkan
 description: Local speech-to-text server with GPU acceleration through Vulkan.
 url: "https://github.com/pollonamid/ha-apps/tree/main/audio_cpp_vulkan"
@@ -35,6 +35,7 @@ options:
   asr_language: en
   tts_voice: Alba
   hf_token: ""
+  enable_zeroconf: true
   extra_models:
     - family: citrinet_asr
       task: asr
@@ -50,6 +51,7 @@ schema:
   asr_language: "str"
   tts_voice: "str"
   hf_token: "password"
+  enable_zeroconf: "bool"
   extra_models:
     - family: "list(citrinet_asr|qwen3_asr|canary_asr|sense_asr|moonshine_asr|parakeet_tdt|whistle_asr|niagara_asr|granite5asr|hviske_asr|hviske_asr_v6|owsm|nemotron_asr|kroko_asr|fun_asr_nano|pocket_tts)"
       task: "list(asr|tts)"

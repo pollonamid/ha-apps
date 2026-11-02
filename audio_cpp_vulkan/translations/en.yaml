@@ -29,6 +29,9 @@ configuration:
   hf_token:
     name: Hugging Face token
     description: A Hugging Face access token, needed for restricted or gated repositories. It is stored in the app and used for every download, also for the models installed from the web interface.
+  enable_zeroconf:
+    name: Automatic discovery
+    description: Announce the Wyoming services over mDNS, so Home Assistant finds them on its own.
   extra_models:
     name: Extra models
     description: Additional models, downloaded from Hugging Face. Use "Add item" to add more than one. They are downloaded on the next start and are then available in the web interface and the API.

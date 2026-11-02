@@ -1,4 +1,9 @@
 <!-- https://contributors.home-assistant.io/apps/guides/presentation/#changelog -->
+## 0.9.5
+
+- Copy the root filesystem into the image. The Supervisor does not do this, so the container had none of the services in it and nothing ran.
+- Announce the Wyoming services over mDNS, so Home Assistant finds them on its own. The new enable_zeroconf option turns that off.
+
 ## 0.9.4
 
 - Fix the app halting on start. bashio::config returns the elements of a list one after another, so the extra models are now read from the options file.

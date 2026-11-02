@@ -13,13 +13,24 @@ readonly TTS_PORT="11201"
 
 export PYTHONPATH="/app/wyoming"
 
-if [[ "$(bashio::config 'enable_tts')" != "true" ]]; then
+# bashio::config asks the Supervisor for the default of an empty option, which
+# is not needed here.
+option() {
+    bashio::config "${1}" 2> /dev/null || true
+}
+
+if [[ "$(option 'enable_tts')" != "true" ]]; then
     bashio::log.info "Text-to-speech is disabled. Enable it in the app options to use the Wyoming TTS bridge."
     exec sleep infinity
 fi
 
-tts_model="$(bashio::config 'tts_model')"
-tts_voice="$(bashio::config 'tts_voice')"
+tts_model="$(option 'tts_model')"
+tts_voice="$(option 'tts_voice')"
+enable_zeroconf="$(option 'enable_zeroconf')"
+
+# Bind to the name of the container. Home Assistant announces and finds the
+# service with that name, so it has to be one it can resolve.
+host="$(hostname)"
 
 target_dir=""
 for candidate in "${SPEC_DIR}"/*.json; do
@@ -42,13 +53,14 @@ fi
 
 jq -n \
     --arg uri "http://127.0.0.1:${APP_PORT}" \
-    --arg tts_uri "tcp://0.0.0.0:${TTS_PORT}" \
+    --arg tts_uri "tcp://${host}:${TTS_PORT}" \
     --arg model "${tts_model}" \
     --arg voice "${tts_voice}" \
     --arg embedding "${voice_file}" \
+    --argjson enable_zeroconf "${enable_zeroconf}" \
     '{
         audiocpp_uri: $uri,
-        enable_zeroconf: false,
+        enable_zeroconf: $enable_zeroconf,
         log_level: "INFO",
         tts_uri: $tts_uri,
         tts_voices: [
@@ -57,6 +69,6 @@ jq -n \
         ]
     }' > "${CONFIG_DIR}/wyoming_tts.json"
 
-bashio::log.info "Starting the Wyoming TTS bridge on port ${TTS_PORT}."
+bashio::log.info "Starting the Wyoming TTS bridge on port ${TTS_PORT}, announced as ${host}."
 # Unbuffered, so the log shows up right away.
 exec /opt/wyoming/bin/python -u -m wyoming_audiocpp_tts --config "${CONFIG_DIR}/wyoming_tts.json"
