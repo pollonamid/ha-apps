@@ -78,10 +78,15 @@ docker run --rm -v "$PWD/tests/e2e/.cache/share:/share" alpine rm -rf /share/aud
 
 ## Scenarios
 
-| Scenario  | TTS model                 | ASR language | Text                                     |
-| --------- | ------------------------- | ------------ | ---------------------------------------- |
-| `english` | `pocket_tts_english_q8_0` | `en`         | The quick brown fox jumps over the lazy dog. |
-| `german`  | `pocket_tts_german_q8_0`  | `de`         | Das ist ein Test der Spracherkennung.    |
+| Scenario       | TTS model                 | ASR language | Text                                     |
+| -------------- | ------------------------- | ------------ | ---------------------------------------- |
+| `english`      | `pocket_tts_english_q8_0` | `en`         | The quick brown fox jumps over the lazy dog. |
+| `german`       | `pocket_tts_german_q8_0`  | `de`         | Das ist ein Test der Spracherkennung.    |
+| `multilingual` | `pocket_tts_german_q8_0`  | `auto`       | Das ist ein Test der Spracherkennung.    |
+
+The `multilingual` scenario checks the info of the service only: with the
+language set to `auto` the speech-to-text service reports all the languages of
+the model.
 
 The comparison is tolerant: the reference and the transcript are lower cased,
 stripped of punctuation and split into words. At least half of the reference

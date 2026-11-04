@@ -69,6 +69,15 @@ SCENARIOS: dict[str, Scenario] = {
         tts_language="de",
         text="Das ist ein Test der Spracherkennung.",
     ),
+    # The speech-to-text model speaks many languages, the service reports all
+    # of them when the language is set to auto.
+    "multilingual": Scenario(
+        name="multilingual",
+        tts_model="pocket_tts_german_q8_0",
+        asr_language="auto",
+        tts_language="de",
+        text="Das ist ein Test der Spracherkennung.",
+    ),
 }
 
 ASR_MODEL = "qwen3_asr_0_6b_q8_0"

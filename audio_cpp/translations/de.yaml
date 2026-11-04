@@ -23,7 +23,7 @@ configuration:
     description: Das Sprachsynthesemodell, das verwendet wird. Es wird beim ersten Start heruntergeladen, wenn die Sprachsynthese aktiviert ist.
   asr_language:
     name: Sprache
-    description: Der Sprachhinweis, der mit der Transkriptionsanfrage gesendet wird. Mit "auto" entscheidet das Modell selbst.
+    description: Der Sprachhinweis, der mit der Transkriptionsanfrage gesendet wird. Mit "auto" entscheidet das Modell selbst und der Dienst wird für jede Sprache angeboten, die das Modell beherrscht.
   tts_voice:
     name: Stimme
     description: Der Name der Stimme, die für die Sprachsynthese verwendet wird.

@@ -58,6 +58,9 @@ def test_wyoming_roundtrip(
     tmp_path: Path,
 ) -> None:
     """The transcript of the synthesized audio has to contain the spoken text."""
+    if scenario.asr_language == "auto":
+        pytest.skip("The round trip needs a fixed language for the transcription")
+
     audio = asyncio.run(
         wyoming_client.synthesize(
             "127.0.0.1",

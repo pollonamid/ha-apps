@@ -31,10 +31,25 @@ def test_speech_to_text_reports_the_language(
     languages = {
         language for model in models if model.installed for language in model.languages
     }
-    assert scenario.asr_language in languages, (
-        f"The service reports the languages {sorted(languages)}, "
-        f"but the model speaks {scenario.asr_language!r}."
-    )
+    assert languages, "The service reports no language"
+
+    if scenario.asr_language == "auto":
+        # The model speaks many languages, the service has to report all of
+        # them, otherwise Home Assistant greys the engine out for most of the
+        # pipelines.
+        assert len(languages) > 1, (
+            f"The service reports only the languages {sorted(languages)}, "
+            "but the model speaks many more."
+        )
+        assert scenario.tts_language in languages, (
+            f"The service reports the languages {sorted(languages)}, "
+            f"but not {scenario.tts_language!r}."
+        )
+    else:
+        assert scenario.asr_language in languages, (
+            f"The service reports the languages {sorted(languages)}, "
+            f"but the model speaks {scenario.asr_language!r}."
+        )
 
 
 def test_text_to_speech_reports_the_language(

@@ -1,4 +1,8 @@
 <!-- https://contributors.home-assistant.io/apps/guides/presentation/#changelog -->
+## 0.9.9
+
+- Report all the languages of the speech-to-text model when the language is set to `auto`, so Home Assistant can use the service for a pipeline in any of them.
+
 ## 0.9.8
 
 - Report the language of the text-to-speech voice to Home Assistant. The bridge always reported English, so Home Assistant did not offer the engine for a German pipeline and greyed out the entry.

@@ -6,6 +6,7 @@
 set -euo pipefail
 
 readonly CONFIG_DIR="/config"
+readonly SPEC_DIR="/app/model_specs"
 readonly APP_PORT="8099"
 readonly ASR_PORT="11301"
 
@@ -20,15 +21,40 @@ option() {
 model="$(option 'model')"
 language="$(option 'asr_language')"
 
-cat > "${CONFIG_DIR}/wyoming_asr.json" << EOF
-{
-  "audiocpp_uri": "http://127.0.0.1:${APP_PORT}",
-  "log_level": "INFO",
-  "asr_uri": "tcp://0.0.0.0:${ASR_PORT}",
-  "asr_model": "${model}",
-  "asr_language": "${language}"
-}
-EOF
+# The languages the model supports. The bridge reports them in its info, so
+# Home Assistant can offer the service for a pipeline in one of them. A
+# language hint restricts the service to that one language.
+if [[ -z "${language}" || "${language}" == "null" || "${language}" == "auto" ]]; then
+    supported=""
+    for candidate in "${SPEC_DIR}"/*.json; do
+        if jq -e --arg id "${model}" '.packages[]? | select(.id == $id)' "${candidate}" > /dev/null 2>&1; then
+            supported="$(jq -r '[.languages[]? | select(test("^[a-z]{2,3}$"))] | join(",")' "${candidate}")"
+            break
+        fi
+    done
+
+    if [[ -n "${supported}" ]]; then
+        language_value="$(jq -nc --arg supported "${supported}" '$supported | split(",")')"
+        bashio::log.info "The model speaks the languages ${supported}"
+    else
+        language_value="\"auto\""
+    fi
+else
+    language_value="\"${language}\""
+fi
+
+jq -n \
+    --arg uri "http://127.0.0.1:${APP_PORT}" \
+    --arg asr_uri "tcp://0.0.0.0:${ASR_PORT}" \
+    --arg model "${model}" \
+    --argjson language "${language_value}" \
+    '{
+        audiocpp_uri: $uri,
+        log_level: "INFO",
+        asr_uri: $asr_uri,
+        asr_model: $model,
+        asr_language: $language
+    }' > "${CONFIG_DIR}/wyoming_asr.json"
 
 bashio::log.info "Starting the Wyoming ASR bridge on port ${ASR_PORT}"
 # Unbuffered, so the log shows up right away.

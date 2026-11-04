@@ -18,7 +18,7 @@
 | `auto_install_model` | `true` | Download the selected model automatically when it is missing. |
 | `enable_tts` | `true` | Enable the Wyoming text-to-speech bridge and the text-to-speech model. |
 | `tts_model` | `pocket_tts_german_q8_0` | The text-to-speech model to use. PocketTTS is available in several languages, every one of them is around 125 MB. It is downloaded on the first start when text-to-speech is enabled. |
-| `asr_language` | `de` | The language hint sent with the transcription request. Use `auto` to let the model decide. |
+| `asr_language` | `de` | The language hint sent with the transcription request. With `auto` the model decides and the service is offered for every language the model supports. |
 | `tts_voice` | `Anna` | The name of the voice used for speech synthesis. |
 | `tts_language` | `auto` | The language that the text-to-speech bridge reports to Home Assistant, so it can pick the engine for a pipeline. `auto` derives it from the text-to-speech model. |
 | `hf_token` | (empty) | A Hugging Face access token. It is needed for restricted or gated repositories and is used for every download. |
@@ -162,6 +162,7 @@ Notes:
 - The Wyoming protocol bridge does not return word-level timestamps.
 - The two bridges are separate services. Home Assistant uses the speech-to-text service as the speech-to-text engine of an Assist pipeline and the text-to-speech service as the text-to-speech engine of the same pipeline. A service that does one of the two is not a voice assistant on its own, so it does not show up as a conversation agent.
 - The language of the service has to match the language of the pipeline, otherwise Home Assistant greys the engine out. The speech-to-text service reports the language from the `asr_language` option, the text-to-speech service the language from the `tts_language` option.
+- A speech-to-text model speaks more than one language. With `asr_language` set to `auto` the service reports all the languages of the model, so it can be used for a pipeline in any of them. A text-to-speech model speaks one language, so the service reports that one.
 - The PocketTTS models of the languages other than English do not ship a voice. The app downloads the voices of the language of the model from the model repository, the voice from the `tts_voice` option is downloaded right away and the other voices follow in the background. They are stored next to the model in `/share/audio_cpp/models` and are not downloaded again.
 
 ## GPU support

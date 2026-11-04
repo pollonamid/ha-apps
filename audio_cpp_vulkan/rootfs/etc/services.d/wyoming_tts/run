@@ -30,7 +30,8 @@ tts_language="$(option 'tts_language')"
 
 # The language of the voice is reported to Home Assistant, so it can pick the
 # engine for a pipeline. It is derived from the model when it is set to auto.
-if [[ -z "${tts_language}" || "${tts_language}" == "auto" ]]; then
+# bashio::config prints null for an option that is not set.
+if [[ -z "${tts_language}" || "${tts_language}" == "auto" || "${tts_language}" == "null" ]]; then
     case "${tts_model}" in
         pocket_tts_english_*) tts_language="en" ;;
         pocket_tts_german_*) tts_language="de" ;;

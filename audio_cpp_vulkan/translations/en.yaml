@@ -22,7 +22,7 @@ configuration:
     description: The text-to-speech model to use. It is downloaded on the first start when text-to-speech is enabled.
   asr_language:
     name: Language
-    description: The language hint sent with the transcription request. Use auto to let the model decide.
+    description: The language hint sent with the transcription request. Use "auto" to let the model decide, the service is then offered for every language the model supports.
   tts_voice:
     name: Voice
     description: The name of the voice used for speech synthesis.
