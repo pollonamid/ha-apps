@@ -1,0 +1,60 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended",
+    ":dependencyDashboard"
+  ],
+  "enabledManagers": [
+    "custom.regex",
+    "dockerfile",
+    "github-actions",
+    "pip_requirements"
+  ],
+  "customManagers": [
+    {
+      "customType": "regex",
+      "managerFilePatterns": [
+        "/(^|/)Dockerfile$/"
+      ],
+      "matchStrings": [
+        "ARG AUDIOCPP_VERSION=(?<currentValue>[^\\n]+)"
+      ],
+      "depNameTemplate": "0xShug0/audio.cpp",
+      "datasourceTemplate": "github-releases",
+      "versioningTemplate": "semver",
+      "extractVersionTemplate": "^v(?<version>.+)$"
+    },
+    {
+      "customType": "regex",
+      "managerFilePatterns": [
+        "/(^|/)Dockerfile$/"
+      ],
+      "matchStrings": [
+        "ARG WYO_VERSION=(?<currentValue>[^\\n]+)"
+      ],
+      "depNameTemplate": "m-abs/wyoming_audiocpp",
+      "datasourceTemplate": "github-tags",
+      "versioningTemplate": "loose"
+    }
+  ],
+  "packageRules": [
+    {
+      "description": "Group the actions of the workflows",
+      "matchManagers": [
+        "github-actions"
+      ],
+      "groupName": "GitHub Actions"
+    },
+    {
+      "description": "Group the versions of the audio.cpp build",
+      "matchManagers": [
+        "custom.regex",
+        "dockerfile"
+      ],
+      "groupName": "audio.cpp build dependencies"
+    }
+  ],
+  "ignorePaths": [
+    "tests/e2e/.cache/**"
+  ]
+}
