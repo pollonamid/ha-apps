@@ -148,19 +148,13 @@ The app ships the two Wyoming protocol bridges from [wyoming_audiocpp](https://g
 
 ### Connecting it to Home Assistant
 
-The bridges announce themselves over mDNS, so Home Assistant normally finds them on its own:
-
-1. Add an integration of type **Wyoming** in Home Assistant.
-2. The two services show up in the list of discovered services, named after the app.
-
-If your network does not pass multicast traffic, connect them by hand:
+Connect them by hand:
 
 1. Open the app configuration and go to the **Network** section.
 2. Enable the port **11301/tcp** for speech-to-text and, if you enabled text-to-speech, also **11201/tcp**. The published host port can be changed to any free port on your machine.
 3. Restart the app.
 4. In Home Assistant, add an integration of type **Wyoming** and enter the URI `wyoming://<your-home-assistant-address>:<the-port-you-published>`, for example `wyoming://192.168.1.10:11301`.
 
-The `enable_zeroconf` option turns the automatic discovery off.
 
 Notes:
 
@@ -190,4 +184,3 @@ The app automatically falls back to the CPU when no Vulkan device is found. The 
 - ggml, the tensor library it is built on — https://github.com/ggml-org/ggml (MIT)
 - wyoming_audiocpp by Morten Sjøgren — https://github.com/m-abs/wyoming_audiocpp (MIT)
 - wyoming, the protocol library — https://github.com/OHF-Voice/wyoming (MIT)
-- python-zeroconf, used for the automatic discovery — https://github.com/python-zeroconf/python-zeroconf (LGPL-2.1-or-later)

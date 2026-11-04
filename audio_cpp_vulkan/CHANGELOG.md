@@ -2,7 +2,6 @@
 ## 0.9.5
 
 - Copy the root filesystem into the image. The Supervisor does not do this, so the container had none of the services in it and nothing ran.
-- Announce the Wyoming services over mDNS, so Home Assistant finds them on its own. The new enable_zeroconf option turns that off.
 
 ## 0.9.4
 

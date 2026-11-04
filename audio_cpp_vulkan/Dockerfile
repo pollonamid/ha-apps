@@ -81,7 +81,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 RUN python3 -m venv /opt/wyoming \
     && /opt/wyoming/bin/pip install --no-cache-dir --upgrade pip \
-    && /opt/wyoming/bin/pip install --no-cache-dir "wyoming>=1.10.2,<2" "requests>=2.31,<3" "zeroconf>=0.135,<1"
+    && /opt/wyoming/bin/pip install --no-cache-dir "wyoming>=1.10.2,<2" "requests>=2.31,<3"
 COPY --from=build /src/build/bin/audiocpp_server /app/audiocpp_server
 COPY --from=build /src/build/bin/audiocpp_model_manager /app/audiocpp_model_manager
 COPY --from=build /app/ /app/

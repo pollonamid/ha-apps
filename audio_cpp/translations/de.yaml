@@ -30,9 +30,6 @@ configuration:
   hf_token:
     name: Hugging-Face-Token
     description: Ein Hugging-Face-Zugriffstoken, der für eingeschränkte oder gesperrte Repositorys benötigt wird. Er wird in der App gespeichert und bei jedem Download verwendet, auch bei Modellen, die über die Weboberfläche installiert werden.
-  enable_zeroconf:
-    name: Automatische Erkennung
-    description: Die Wyoming-Dienste über mDNS ankündigen, damit Home Assistant sie von selbst findet.
   extra_models:
     name: Zusätzliche Modelle
     description: Zusätzliche Modelle von einer Hugging-Face-URL. Mit "Element hinzufügen" lassen sich mehrere hinzufügen. Die Modelle werden beim nächsten Start der App heruntergeladen und stehen danach in der Weboberfläche und der API zur Verfügung.
