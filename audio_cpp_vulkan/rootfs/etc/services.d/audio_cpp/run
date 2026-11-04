@@ -172,7 +172,8 @@ download_catalog_model() {
 
 # Voice presets for models that ship voice embeddings, such as PocketTTS. They
 # are taken from the model spec, so they are known before the model is
-# downloaded.
+# downloaded. Embeddings that are not part of the package, such as a voice
+# that was downloaded for a model without voices, are taken from the disk.
 voice_presets() {
     local pkg="$1"
     local target_dir="$2"
@@ -188,6 +189,11 @@ voice_presets() {
                 ;;
         esac
     done < <(installed_files "${pkg}")
+    while IFS= read -r relative; do
+        name="$(basename "${relative}" .safetensors)"
+        result="$(jq --arg n "${name}" --arg p "${relative}" \
+            '. + {($n): {options: {voice_embedding_file: $p}}}' <<< "${result}")"
+    done < <(find "${target_dir}/embeddings" -maxdepth 1 -name '*.safetensors' -print 2> /dev/null || true)
     printf '%s' "${result}"
 }
 
@@ -303,6 +309,11 @@ if [[ "${enable_tts}" == "true" ]]; then
     resolve_model "${tts_model}"
     tts_family="${MODEL_FAMILY}"
     tts_path="${MODEL_FILE}"
+    # The text-to-speech model needs a voice. Models that do not ship one get
+    # the voices of their language downloaded, so the synthesis works right
+    # away.
+    /usr/local/bin/ensure_tts_voices.sh "${tts_model}" "$(option 'tts_voice')" || \
+        bashio::log.warning "No voice is available for the model '${tts_model}'. The synthesis may fail."
     tts_presets="$(voice_presets "${tts_model}" "${MODEL_DIR}")"
     pending_catalog_downloads+=("${tts_model}")
     use_tts="true"

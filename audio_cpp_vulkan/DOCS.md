@@ -11,15 +11,15 @@
 
 | Option | Default | Description |
 | --- | --- | --- |
-| `model` | `citrinet_asr_q8_0` | The speech-to-text model to use. It is downloaded on the first start. |
+| `model` | `qwen3_asr_0_6b_q8_0` | The speech-to-text model to use. It is downloaded on the first start. |
 | `backend` | `vulkan` | The inference backend to use. `vulkan` uses the GPU, `cpu` uses the processor. |
 | `threads` | `4` | The number of CPU threads used for inference. |
-| `max_loaded_models` | `1` | How many models may stay loaded in memory at the same time. |
+| `max_loaded_models` | `2` | How many models may stay loaded in memory at the same time. |
 | `auto_install_model` | `true` | Download the selected model automatically when it is missing. |
-| `enable_tts` | `false` | Enable the Wyoming text-to-speech bridge and the text-to-speech model. |
-| `tts_model` | `pocket_tts_english_q8_0` | The text-to-speech model to use. PocketTTS is available in several languages, every one of them is around 125 MB. It is downloaded on the first start when text-to-speech is enabled. |
-| `asr_language` | `en` | The language hint sent with the transcription request. Use `auto` to let the model decide. |
-| `tts_voice` | `Alba` | The name of the voice used for speech synthesis. |
+| `enable_tts` | `true` | Enable the Wyoming text-to-speech bridge and the text-to-speech model. |
+| `tts_model` | `pocket_tts_german_q8_0` | The text-to-speech model to use. PocketTTS is available in several languages, every one of them is around 125 MB. It is downloaded on the first start when text-to-speech is enabled. |
+| `asr_language` | `de` | The language hint sent with the transcription request. Use `auto` to let the model decide. |
+| `tts_voice` | `Anna` | The name of the voice used for speech synthesis. |
 | `hf_token` | (empty) | A Hugging Face access token. It is needed for restricted or gated repositories and is used for every download. |
 | `extra_models` | (empty) | Additional models from a Hugging Face url. Use **Add item** to add more than one. |
 
@@ -161,6 +161,7 @@ Notes:
 - The Wyoming speech-to-text bridge forwards the transcription request to audio.cpp and returns the text. It has a fixed 15 second timeout, so a very large model on a slow CPU can time out.
 - The Wyoming text-to-speech bridge is idle until you enable text-to-speech in the options.
 - The Wyoming protocol bridge does not return word-level timestamps.
+- The PocketTTS models of the languages other than English do not ship a voice. The app downloads the voices of the language of the model from the model repository, the voice from the `tts_voice` option is downloaded right away and the other voices follow in the background. They are stored next to the model in `/share/audio_cpp/models` and are not downloaded again.
 
 ## GPU support
 

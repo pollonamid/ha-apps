@@ -1,6 +1,6 @@
 # https://contributors.home-assistant.io/apps/reference/configuration/
 name: Audio.cpp
-version: "0.9.5"
+version: "0.9.7"
 slug: audio_cpp
 description: Local speech-to-text server with an OpenAI-compatible API.
 url: "https://github.com/pollonamid/ha-apps/tree/main/audio_cpp"
@@ -24,15 +24,15 @@ ports_description:
 map:
   - share:rw
 options:
-  model: citrinet_asr_q8_0
+  model: qwen3_asr_0_6b_q8_0
   backend: cpu
   threads: 4
-  max_loaded_models: 1
+  max_loaded_models: 2
   auto_install_model: true
-  enable_tts: false
-  tts_model: pocket_tts_english_q8_0
-  asr_language: en
-  tts_voice: Alba
+  enable_tts: true
+  tts_model: pocket_tts_german_q8_0
+  asr_language: de
+  tts_voice: Anna
   hf_token: ""
   extra_models:
     - family: citrinet_asr

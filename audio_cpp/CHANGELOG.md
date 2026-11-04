@@ -1,4 +1,16 @@
 <!-- https://contributors.home-assistant.io/apps/guides/presentation/#changelog -->
+## 0.9.7
+
+- Set the defaults for German: the Qwen3 speech-to-text model, the German PocketTTS model, the language hint `de` and the voice `Anna`. Text-to-speech is enabled by default now.
+
+## 0.9.6
+
+- Download the voices of the text-to-speech model when they are needed. The PocketTTS models of the languages other than English do not ship a voice, so the synthesis failed with "requires a session voice".
+
+## 0.9.6
+
+- Download the voices of the text-to-speech model when they are needed. The PocketTTS models of the languages other than English do not ship a voice, so the synthesis failed with "requires a session voice".
+
 ## 0.9.5
 
 - Copy the root filesystem into the image. The Supervisor does not do this, so the container had none of the services in it and nothing ran.

@@ -27,6 +27,12 @@ fi
 tts_model="$(option 'tts_model')"
 tts_voice="$(option 'tts_voice')"
 
+# The bridge needs a voice embedding for the model. Models that do not ship
+# one get the voices of their language downloaded, so the synthesis works
+# right away.
+/usr/local/bin/ensure_tts_voices.sh "${tts_model}" "${tts_voice}" || \
+    bashio::log.warning "No voice '${tts_voice}' is available for the model '${tts_model}'. The synthesis may fail."
+
 target_dir=""
 for candidate in "${SPEC_DIR}"/*.json; do
     if jq -e --arg id "${tts_model}" '.packages[]? | select(.id == $id)' "${candidate}" > /dev/null 2>&1; then

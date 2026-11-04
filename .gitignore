@@ -12,3 +12,7 @@
 # Python
 __pycache__/
 *.py[cod]
+
+# End-to-end test cache
+tests/e2e/.cache/
+tests/e2e/__pycache__/
