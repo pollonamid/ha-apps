@@ -50,6 +50,7 @@ class Scenario:
     name: str
     tts_model: str
     asr_language: str
+    tts_language: str
     text: str
 
 
@@ -58,12 +59,14 @@ SCENARIOS: dict[str, Scenario] = {
         name="english",
         tts_model="pocket_tts_english_q8_0",
         asr_language="en",
+        tts_language="en",
         text="The quick brown fox jumps over the lazy dog.",
     ),
     "german": Scenario(
         name="german",
         tts_model="pocket_tts_german_q8_0",
         asr_language="de",
+        tts_language="de",
         text="Das ist ein Test der Spracherkennung.",
     ),
 }
@@ -167,6 +170,7 @@ def build_options(scenario: Scenario) -> dict[str, Any]:
         "tts_model": scenario.tts_model,
         "asr_language": scenario.asr_language,
         "tts_voice": TTS_VOICE,
+        "tts_language": "auto",
         "hf_token": "",
         "extra_models": [],
     }

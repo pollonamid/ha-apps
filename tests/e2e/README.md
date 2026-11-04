@@ -89,6 +89,8 @@ words have to be part of the transcript, and the transcript must not be empty.
 The generated WAV file is written into the pytest temporary directory, its path
 is part of the failure message.
 
+`test_wyoming_service_info.py` checks the info that the services report: the speech-to-text service has to report the language of the model and the text-to-speech service the language of the voice. Home Assistant greys out an engine that does not speak the language of the pipeline.
+
 The test also waits for the voice of the text-to-speech model. The app
 downloads the voices of the language of the model when they are missing, the
 PocketTTS models of the languages other than English do not ship one.

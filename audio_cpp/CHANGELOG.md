@@ -1,4 +1,8 @@
 <!-- https://contributors.home-assistant.io/apps/guides/presentation/#changelog -->
+## 0.9.8
+
+- Report the language of the text-to-speech voice to Home Assistant. The bridge always reported English, so Home Assistant did not offer the engine for a German pipeline and greyed out the entry.
+
 ## 0.9.7
 
 - Set the defaults for German: the Qwen3 speech-to-text model, the German PocketTTS model, the language hint `de` and the voice `Anna`. Text-to-speech is enabled by default now.

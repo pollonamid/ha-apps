@@ -15,6 +15,7 @@ from wyoming.asr import Transcribe, Transcript
 from wyoming.audio import AudioChunk, AudioStart, AudioStop
 from wyoming.error import Error
 from wyoming.event import async_read_event, async_write_event
+from wyoming.info import Describe, Info
 from wyoming.tts import Synthesize, SynthesizeVoice
 
 DEFAULT_TIMEOUT = 300.0
@@ -48,6 +49,30 @@ class SynthesizedAudio:
             wav.setframerate(self.audio_format.rate)
             wav.writeframes(self.pcm)
         return buffer.getvalue()
+
+
+async def describe(
+    host: str,
+    port: int,
+    timeout: float = DEFAULT_TIMEOUT,
+) -> Info:
+    """Ask the service for its info and return it."""
+    reader, writer = await asyncio.open_connection(host, port)
+    try:
+        await async_write_event(Describe().event(), writer)
+        while True:
+            event = await asyncio.wait_for(async_read_event(reader), timeout)
+            if event is None:
+                raise RuntimeError("The service closed the connection without an info")
+            if Info.is_type(event.type):
+                return Info.from_event(event)
+            if Error.is_type(event.type):
+                raise RuntimeError(
+                    f"The service failed: {Error.from_event(event).text}"
+                )
+    finally:
+        writer.close()
+        await writer.wait_closed()
 
 
 async def synthesize(

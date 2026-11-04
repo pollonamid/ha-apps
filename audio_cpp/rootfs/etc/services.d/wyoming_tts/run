@@ -26,6 +26,22 @@ fi
 
 tts_model="$(option 'tts_model')"
 tts_voice="$(option 'tts_voice')"
+tts_language="$(option 'tts_language')"
+
+# The language of the voice is reported to Home Assistant, so it can pick the
+# engine for a pipeline. It is derived from the model when it is set to auto.
+# bashio::config prints null for an option that is not set.
+if [[ -z "${tts_language}" || "${tts_language}" == "auto" || "${tts_language}" == "null" ]]; then
+    case "${tts_model}" in
+        pocket_tts_english_*) tts_language="en" ;;
+        pocket_tts_german_*) tts_language="de" ;;
+        pocket_tts_french_*) tts_language="fr" ;;
+        pocket_tts_italian_*) tts_language="it" ;;
+        pocket_tts_portuguese_*) tts_language="pt" ;;
+        pocket_tts_spanish_*) tts_language="es" ;;
+        *) tts_language="en" ;;
+    esac
+fi
 
 # The bridge needs a voice embedding for the model. Models that do not ship
 # one get the voices of their language downloaded, so the synthesis works
@@ -57,13 +73,14 @@ jq -n \
     --arg tts_uri "tcp://0.0.0.0:${TTS_PORT}" \
     --arg model "${tts_model}" \
     --arg voice "${tts_voice}" \
+    --arg language "${tts_language}" \
     --arg embedding "${voice_file}" \
     '{
         audiocpp_uri: $uri,
         log_level: "INFO",
         tts_uri: $tts_uri,
         tts_voices: [
-            ({ model: $model, name: $voice }
+            ({ model: $model, name: $voice, language: $language }
              + (if $embedding == "" then {} else { options: { voice_embedding_file: $embedding } } end))
         ]
     }' > "${CONFIG_DIR}/wyoming_tts.json"

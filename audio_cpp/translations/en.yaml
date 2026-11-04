@@ -26,6 +26,9 @@ configuration:
   tts_voice:
     name: Voice
     description: The name of the voice used for speech synthesis.
+  tts_language:
+    name: Voice language
+    description: The language that the text-to-speech bridge reports, so Home Assistant can pick the engine for a pipeline. "auto" derives it from the text-to-speech model.
   hf_token:
     name: Hugging Face token
     description: A Hugging Face access token, needed for restricted or gated repositories. It is stored in the app and used for every download, also for the models installed from the web interface.

@@ -27,6 +27,9 @@ configuration:
   tts_voice:
     name: Stimme
     description: Der Name der Stimme, die für die Sprachsynthese verwendet wird.
+  tts_language:
+    name: Sprache der Stimme
+    description: Die Sprache, die der Sprachsynthese-Bridge gemeldet wird, damit Home Assistant die Engine für eine Pipeline auswählt. "auto" leitet sie aus dem Sprachsynthesemodell ab.
   hf_token:
     name: Hugging-Face-Token
     description: Ein Hugging-Face-Zugriffstoken, der für eingeschränkte oder gesperrte Repositorys benötigt wird. Er wird in der App gespeichert und bei jedem Download verwendet, auch bei Modellen, die über die Weboberfläche installiert werden.
