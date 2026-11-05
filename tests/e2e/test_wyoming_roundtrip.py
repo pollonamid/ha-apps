@@ -12,8 +12,6 @@ import string
 import time
 from pathlib import Path
 
-import pytest
-
 import conftest
 import wyoming_client
 
@@ -52,21 +50,31 @@ def transcribe_with_retry(
     raise AssertionError(f"The ASR bridge did not transcribe the audio: {last_error}")
 
 
+def pick_voice(addon: conftest.Addon, scenario: conftest.Scenario) -> str:
+    """Pick one of the voices that the service offers."""
+    info = asyncio.run(wyoming_client.describe("127.0.0.1", addon.tts_port))
+    voices = [voice for program in info.tts for voice in program.voices]
+    matching = [voice for voice in voices if scenario.tts_language in voice.languages]
+    assert matching, (
+        f"The service offers the voices {[(v.name, v.languages) for v in voices]}, "
+        f"but none of them speaks {scenario.tts_language!r}."
+    )
+    return matching[0].name
+
+
 def test_wyoming_roundtrip(
     scenario: conftest.Scenario,
     addon: conftest.Addon,
     tmp_path: Path,
 ) -> None:
     """The transcript of the synthesized audio has to contain the spoken text."""
-    if scenario.asr_language == "auto":
-        pytest.skip("The round trip needs a fixed language for the transcription")
-
+    voice = pick_voice(addon, scenario)
     audio = asyncio.run(
         wyoming_client.synthesize(
             "127.0.0.1",
             addon.tts_port,
             scenario.text,
-            voice=conftest.TTS_VOICE,
+            voice=voice,
         )
     )
     assert audio.pcm, "The TTS bridge returned no audio"
@@ -74,7 +82,7 @@ def test_wyoming_roundtrip(
     wav_path = tmp_path / f"{scenario.name}.wav"
     wav_path.write_bytes(audio.to_wav())
     print(
-        f"\n[test] {scenario.name}: {len(audio.pcm)} bytes of PCM "
+        f"\n[test] {scenario.name}: voice {voice!r}, {len(audio.pcm)} bytes of PCM "
         f"at {audio.audio_format.rate} Hz, {audio.audio_format.width} byte(s), "
         f"{audio.audio_format.channels} channel(s), saved to {wav_path}"
     )

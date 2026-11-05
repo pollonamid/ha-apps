@@ -1,6 +1,6 @@
 # https://contributors.home-assistant.io/apps/reference/configuration/
 name: Audio.cpp
-version: "0.9.9"
+version: "0.10.0"
 slug: audio_cpp
 description: Local speech-to-text server with an OpenAI-compatible API.
 url: "https://github.com/pollonamid/ha-apps/tree/main/audio_cpp"
@@ -24,37 +24,19 @@ ports_description:
 map:
   - share:rw
 options:
-  model: qwen3_asr_0_6b_q8_0
+  speech_to_text_model: qwen3_asr_0_6b_q8_0
   backend: cpu
   threads: 4
   max_loaded_models: 2
-  auto_install_model: true
-  enable_tts: true
-  tts_model: pocket_tts_german_q8_0
-  asr_language: de
-  tts_voice: Anna
-  tts_language: auto
+  tts_family: pocket_tts
   hf_token: ""
-  extra_models:
-    - family: citrinet_asr
-      task: asr
-      url: ""
 schema:
-  model: "list(citrinet_asr_q8_0|qwen3_asr_0_6b_q8_0|qwen3_asr_0_6b_f16|qwen3_asr_1_7b_q8_0|qwen3_asr_1_7b_f16|qwencleo_asr_q8_0|qwencleo_asr_f16|canary_180m_flash_q8_0|canary_180m_flash_f32|sensevoice_small_q8|moonshine_streaming_tiny_q8_0|moonshine_streaming_small_q8_0|moonshine_streaming_medium_q8_0|parakeet_tdt_q8_0|parakeet_tdt_f16|whistle_asr_f32|niagara_19m_f32|niagara_38m_f32|granite5asr_q8_0|hviske_asr_q8_0|hviske_asr_v6_q8_0|hviske_asr_v6_bf16|owsm_v4_small_370m_q8_0|owsm_v4_small_370m_q4_k|owsm_v4_small_370m_f32|owsm_v4_base_102m_q8_0|owsm_v4_base_102m_f32|owsm_v4_medium_1b_q8_0|owsm_v4_medium_1b_q4_k|owsm_v4_medium_1b_f32|nemotron_asr_q8_0|nemotron_asr_f16|kroko_asr_community_q8_0|fun_asr_nano_2512_q8_0|fun_asr_nano_2512_f16)"
+  speech_to_text_model: "list(citrinet_asr_q8_0|qwen3_asr_0_6b_q8_0|qwen3_asr_0_6b_f16|qwen3_asr_1_7b_q8_0|qwen3_asr_1_7b_f16|qwencleo_asr_q8_0|qwencleo_asr_f16|canary_180m_flash_q8_0|canary_180m_flash_f32|sensevoice_small_q8|moonshine_streaming_tiny_q8_0|moonshine_streaming_small_q8_0|moonshine_streaming_medium_q8_0|parakeet_tdt_q8_0|parakeet_tdt_f16|whistle_asr_f32|niagara_19m_f32|niagara_38m_f32|granite5asr_q8_0|hviske_asr_q8_0|hviske_asr_v6_q8_0|hviske_asr_v6_bf16|owsm_v4_small_370m_q8_0|owsm_v4_small_370m_q4_k|owsm_v4_small_370m_f32|owsm_v4_base_102m_q8_0|owsm_v4_base_102m_f32|owsm_v4_medium_1b_q8_0|owsm_v4_medium_1b_q4_k|owsm_v4_medium_1b_f32|nemotron_asr_q8_0|nemotron_asr_f16|kroko_asr_community_q8_0|fun_asr_nano_2512_q8_0|fun_asr_nano_2512_f16)"
   backend: "list(cpu)"
   threads: "int(1,16)"
   max_loaded_models: "int(1,4)"
-  auto_install_model: "bool"
-  enable_tts: "bool"
-  tts_model: "list(pocket_tts_english_q8_0|pocket_tts_english_bf16|pocket_tts_german_q8_0|pocket_tts_german_bf16|pocket_tts_italian_q8_0|pocket_tts_italian_bf16|pocket_tts_spanish_q8_0|pocket_tts_spanish_bf16|pocket_tts_portuguese_q8_0|pocket_tts_portuguese_bf16|pocket_tts_french_q8_0|pocket_tts_french_bf16)"
-  asr_language: "str"
-  tts_voice: "str"
-  tts_language: "str"
+  tts_family: "list(pocket_tts)"
   hf_token: "password"
-  extra_models:
-    - family: "list(citrinet_asr|qwen3_asr|canary_asr|sense_asr|moonshine_asr|parakeet_tdt|whistle_asr|niagara_asr|granite5asr|hviske_asr|hviske_asr_v6|owsm|nemotron_asr|kroko_asr|fun_asr_nano|pocket_tts)"
-      task: "list(asr|tts)"
-      url: str
 # The image is built and published to the registry by the workflow in
 # .github/workflows/builder.yaml.
 image: "ghcr.io/pollonamid/audio-cpp"

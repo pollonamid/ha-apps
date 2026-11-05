@@ -34,6 +34,7 @@ MODELS_DIR = SHARE_DIR / "audio_cpp" / "models"
 
 BUILT_IMAGE = "ha-apps-e2e/audio-cpp:e2e"
 SUPERVISOR_TOKEN = "e2e-supervisor-token"
+SUPERVISOR_PORT = 8123
 
 CONTAINER_HTTP_PORT = 8099
 CONTAINER_ASR_PORT = 11301
@@ -48,34 +49,22 @@ class Scenario:
     """One language scenario of the round trip test."""
 
     name: str
-    tts_model: str
-    asr_language: str
     tts_language: str
+    asr_language: str
     text: str
 
 
 SCENARIOS: dict[str, Scenario] = {
     "english": Scenario(
         name="english",
-        tts_model="pocket_tts_english_q8_0",
-        asr_language="en",
         tts_language="en",
+        asr_language="en",
         text="The quick brown fox jumps over the lazy dog.",
     ),
     "german": Scenario(
         name="german",
-        tts_model="pocket_tts_german_q8_0",
+        tts_language="de",
         asr_language="de",
-        tts_language="de",
-        text="Das ist ein Test der Spracherkennung.",
-    ),
-    # The speech-to-text model speaks many languages, the service reports all
-    # of them when the language is set to auto.
-    "multilingual": Scenario(
-        name="multilingual",
-        tts_model="pocket_tts_german_q8_0",
-        asr_language="auto",
-        tts_language="de",
         text="Das ist ein Test der Spracherkennung.",
     ),
 }
@@ -84,18 +73,8 @@ ASR_MODEL = "qwen3_asr_0_6b_q8_0"
 
 MODEL_FILES: dict[str, str] = {
     ASR_MODEL: "Qwen3-ASR-0.6B-GGUF/qwen3-asr-0.6b-q8_0.gguf",
-    "pocket_tts_english_q8_0": "PocketTTS-GGUF/english/pocket-tts-english-q8_0.gguf",
-    "pocket_tts_german_q8_0": "PocketTTS-GGUF/german/pocket-tts-german-q8_0.gguf",
 }
 
-# The directory of a model package in the shared directory of the container.
-MODEL_DIRS: dict[str, str] = {
-    ASR_MODEL: "Qwen3-ASR-0.6B-GGUF",
-    "pocket_tts_english_q8_0": "PocketTTS-GGUF/english",
-    "pocket_tts_german_q8_0": "PocketTTS-GGUF/german",
-}
-
-TTS_VOICE = "Anna"
 
 
 class Addon:
@@ -162,26 +141,15 @@ def model_path(package_id: str) -> Path:
     return MODELS_DIR / MODEL_FILES[package_id]
 
 
-def voice_path(package_id: str) -> Path:
-    """Return the host path of the voice embedding of a package."""
-    return MODELS_DIR / MODEL_DIRS[package_id] / "embeddings" / f"{TTS_VOICE.lower()}.safetensors"
-
-
 def build_options(scenario: Scenario) -> dict[str, Any]:
     """Build the addon options of a scenario."""
     return {
-        "model": ASR_MODEL,
+        "speech_to_text_model": ASR_MODEL,
         "backend": "cpu",
         "threads": 4,
         "max_loaded_models": 2,
-        "auto_install_model": True,
-        "enable_tts": True,
-        "tts_model": scenario.tts_model,
-        "asr_language": scenario.asr_language,
-        "tts_voice": TTS_VOICE,
-        "tts_language": "auto",
+        "tts_family": "pocket_tts",
         "hf_token": "",
-        "extra_models": [],
     }
 
 
@@ -219,45 +187,73 @@ def options_file(tmp_path_factory: pytest.TempPathFactory) -> Path:
 
 
 @pytest.fixture(scope="session")
-def mock_supervisor(options_file: Path) -> Iterator[int]:
-    """A mock Supervisor API on the host, listening on a free port."""
-    port = free_port()
-    process = subprocess.Popen(
+def docker_network() -> Iterator[str]:
+    """A docker network for the containers of the test."""
+    name = "audio-cpp-e2e"
+    run_docker(["network", "create", name], check=False)
+    try:
+        yield name
+    finally:
+        run_docker(["network", "rm", name], check=False)
+
+
+@pytest.fixture(scope="session")
+def mock_supervisor(
+    options_file: Path,
+    image: str,
+    docker_network: str,
+) -> Iterator[str]:
+    """A mock Supervisor API in a container of the test network.
+
+    It runs in a container, so the addon container can reach it by its name.
+    The directory with the options file is mounted into it, so the options can
+    be changed between the scenarios.
+    """
+    name = "audio-cpp-e2e-supervisor"
+    run_docker(["rm", "-f", name], check=False)
+    run_docker(
         [
-            sys.executable,
-            str(E2E_DIR / "mock_supervisor.py"),
+            "run",
+            "-d",
+            "--name",
+            name,
+            "--network",
+            docker_network,
+            "--network-alias",
+            "supervisor",
+            "--entrypoint",
+            "/usr/bin/python3",
+            "-v",
+            f"{options_file.parent}:/supervisor",
+            "-v",
+            f"{E2E_DIR}:/e2e:ro",
+            image,
+            "/e2e/mock_supervisor.py",
             "--options",
-            str(options_file),
+            "/supervisor/options.json",
             "--host",
             "0.0.0.0",
             "--port",
-            str(port),
+            str(SUPERVISOR_PORT),
             "--token",
             SUPERVISOR_TOKEN,
-        ],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        text=True,
+        ]
     )
     try:
-        deadline = time.monotonic() + 30
+        deadline = time.monotonic() + 60
         while time.monotonic() < deadline:
-            if process.poll() is not None:
-                output = process.stdout.read() if process.stdout else ""
-                pytest.fail(f"The mock Supervisor died:\n{output}")
-            if port_is_open("127.0.0.1", port):
+            logs = docker_logs(name)
+            if "listening" in logs:
                 break
-            time.sleep(0.2)
+            if "Traceback" in logs:
+                pytest.fail(f"The mock Supervisor died:\n{logs}")
+            time.sleep(0.5)
         else:
-            pytest.fail("The mock Supervisor did not start")
-        print(f"\n[fixture mock_supervisor] listening on port {port}")
-        yield port
+            pytest.fail(f"The mock Supervisor did not start:\n{docker_logs(name)}")
+        print(f"\n[fixture mock_supervisor] {name} is ready")
+        yield "supervisor"
     finally:
-        process.terminate()
-        try:
-            process.wait(timeout=10)
-        except subprocess.TimeoutExpired:
-            process.kill()
+        run_docker(["rm", "-f", name], check=False)
 
 
 @pytest.fixture(params=sorted(SCENARIOS), ids=sorted(SCENARIOS))
@@ -266,7 +262,7 @@ def scenario(request: pytest.FixtureRequest) -> Scenario:
     return SCENARIOS[request.param]
 
 
-def wait_for_ready(addon: Addon, packages: list[str], voice_package: str | None = None) -> None:
+def wait_for_ready(addon: Addon, packages: list[str]) -> None:
     """Wait until the container serves its ports and has the models on disk."""
     deadline = time.monotonic() + READY_TIMEOUT
     reported = ""
@@ -282,14 +278,15 @@ def wait_for_ready(addon: Addon, packages: list[str], voice_package: str | None 
             path = model_path(package)
             if not path.exists():
                 problems.append(f"{path.name} is missing")
-        if voice_package is not None:
-            # The app downloads the voice of the model when it is missing.
-            path = voice_path(voice_package)
-            if not path.exists():
-                problems.append(f"the voice {TTS_VOICE} is missing")
 
         if not problems:
             return
+
+        # The container died, there is no point in waiting for it.
+        if run_docker(["inspect", "-f", "{{.State.Running}}", addon.name], check=False).stdout.strip() != "true":
+            raise RuntimeError(
+                f"The container {addon.name} stopped:\n{docker_logs(addon.name)}"
+            )
 
         report = ", ".join(problems)
         if report != reported:
@@ -308,7 +305,8 @@ def addon(
     scenario: Scenario,
     image: str,
     share_dir: Path,
-    mock_supervisor: int,
+    mock_supervisor: str,
+    docker_network: str,
     options_file: Path,
     tmp_path_factory: pytest.TempPathFactory,
 ) -> Iterator[Addon]:
@@ -334,10 +332,10 @@ def addon(
             "-d",
             "--name",
             name,
-            "--add-host",
-            "supervisor:host-gateway",
+            "--network",
+            docker_network,
             "-e",
-            f"SUPERVISOR_API=http://supervisor:{mock_supervisor}",
+            f"SUPERVISOR_API=http://supervisor:{SUPERVISOR_PORT}",
             "-e",
             f"SUPERVISOR_TOKEN={SUPERVISOR_TOKEN}",
             "-v",
@@ -358,7 +356,7 @@ def addon(
 
     addon = Addon(name, http_port, asr_port, tts_port)
     try:
-        wait_for_ready(addon, [ASR_MODEL, scenario.tts_model], scenario.tts_model)
+        wait_for_ready(addon, [ASR_MODEL])
     except Exception:
         print(f"\n[fixture addon] container logs:\n{docker_logs(name)}")
         raise

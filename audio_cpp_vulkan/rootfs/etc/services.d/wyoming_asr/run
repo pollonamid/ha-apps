@@ -1,6 +1,11 @@
 #!/usr/bin/with-contenv bashio
 # ==============================================================================
 # Start the Wyoming speech-to-text bridge
+# ==============================================================================
+# The bridge reports the languages of the model, so Home Assistant can use
+# the service for a pipeline in any of them. The language of a request comes
+# from Home Assistant.
+# ==============================================================================
 # s6-overlay docs: https://github.com/just-containers/s6-overlay
 # ==============================================================================
 set -euo pipefail
@@ -8,6 +13,7 @@ set -euo pipefail
 readonly CONFIG_DIR="/config"
 readonly SPEC_DIR="/app/model_specs"
 readonly APP_PORT="8099"
+readonly PROXY_PORT="8098"
 readonly ASR_PORT="11301"
 
 export PYTHONPATH="/app/wyoming"
@@ -18,33 +24,31 @@ option() {
     bashio::config "${1}" 2> /dev/null || true
 }
 
-model="$(option 'model')"
-language="$(option 'asr_language')"
+model="$(option 'speech_to_text_model')"
+if [[ -z "${model}" || "${model}" == "null" ]]; then
+    model="qwen3_asr_0_6b_q8_0"
+fi
 
-# The languages the model supports. The bridge reports them in its info, so
-# Home Assistant can offer the service for a pipeline in one of them. A
-# language hint restricts the service to that one language.
-if [[ -z "${language}" || "${language}" == "null" || "${language}" == "auto" ]]; then
-    supported=""
-    for candidate in "${SPEC_DIR}"/*.json; do
-        if jq -e --arg id "${model}" '.packages[]? | select(.id == $id)' "${candidate}" > /dev/null 2>&1; then
-            supported="$(jq -r '[.languages[]? | select(test("^[a-z]{2,3}$"))] | join(",")' "${candidate}")"
-            break
-        fi
-    done
-
-    if [[ -n "${supported}" ]]; then
-        language_value="$(jq -nc --arg supported "${supported}" '$supported | split(",")')"
-        bashio::log.info "The model speaks the languages ${supported}"
-    else
-        language_value="\"auto\""
+# The languages the model speaks. They are only used for the info response,
+# the language of a request comes from Home Assistant.
+languages=""
+for candidate in "${SPEC_DIR}"/*.json; do
+    if jq -e --arg id "${model}" '.packages[]? | select(.id == $id)' "${candidate}" > /dev/null 2>&1; then
+        languages="$(jq -r '[.languages[]? | select(test("^[a-z]{2,3}$"))] | join(",")' "${candidate}")"
+        break
     fi
+done
+
+if [[ -n "${languages}" ]]; then
+    language_value="$(jq -nc --arg languages "${languages}" '$languages | split(",")')"
+    bashio::log.info "The model speaks the languages ${languages}"
 else
-    language_value="\"${language}\""
+    # Without a language the model decides for itself.
+    language_value='["auto"]'
 fi
 
 jq -n \
-    --arg uri "http://127.0.0.1:${APP_PORT}" \
+    --arg uri "http://127.0.0.1:${PROXY_PORT}" \
     --arg asr_uri "tcp://0.0.0.0:${ASR_PORT}" \
     --arg model "${model}" \
     --argjson language "${language_value}" \

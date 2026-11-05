@@ -1,6 +1,11 @@
 #!/usr/bin/with-contenv bashio
 # ==============================================================================
 # Start the Audio.cpp server
+# ==============================================================================
+# The server gets the speech-to-text model and the models of the text-to-speech
+# family. A model of the family that is not on the disk is downloaded when it
+# is used for the first time, the proxy in front of the server does it.
+# ==============================================================================
 # s6-overlay docs: https://github.com/just-containers/s6-overlay
 # ==============================================================================
 set -euo pipefail
@@ -8,13 +13,12 @@ set -euo pipefail
 readonly APP_DIR="/app"
 readonly CONFIG_DIR="/config"
 readonly MODELS_DIR="/share/audio_cpp/models"
-readonly CUSTOM_DIR="${MODELS_DIR}/Custom"
 readonly SPEC_DIR="/app/model_specs"
 readonly PORT="8099"
 readonly TOKEN_FILE="/root/.cache/huggingface/token"
 readonly HF_BASE_URL="https://huggingface.co"
 
-mkdir -p "${CONFIG_DIR}" "${MODELS_DIR}" "${CUSTOM_DIR}"
+mkdir -p "${CONFIG_DIR}" "${MODELS_DIR}"
 
 # Read an option from the local options file. bashio::config would ask the
 # Supervisor for the default of an empty option, which is not needed here.
@@ -22,22 +26,24 @@ option() {
     bashio::config "${1}" 2> /dev/null || true
 }
 
-model="$(option 'model')"
-tts_model="$(option 'tts_model')"
-enable_tts="$(option 'enable_tts')"
+speech_to_text_model="$(option 'speech_to_text_model')"
 backend="$(option 'backend')"
 threads="$(option 'threads')"
 max_loaded_models="$(option 'max_loaded_models')"
-auto_install_model="$(option 'auto_install_model')"
+tts_family="$(option 'tts_family')"
 hf_token="$(option 'hf_token')"
-# bashio::config returns the elements of a list one after another, so the
-# list of extra models is read from the options file directly.
-extra_models_json="$(jq -c '.extra_models // []' /data/options.json 2> /dev/null || echo '[]')"
+
+if [[ -z "${speech_to_text_model}" || "${speech_to_text_model}" == "null" ]]; then
+    speech_to_text_model="qwen3_asr_0_6b_q8_0"
+fi
+if [[ -z "${tts_family}" || "${tts_family}" == "null" ]]; then
+    tts_family="pocket_tts"
+fi
 
 # The token is stored in a file, because the server reads it from there for
 # every download. That way it also works for the models the web interface
 # installs, not only for the ones downloaded here.
-if [[ -n "${hf_token}" ]]; then
+if [[ -n "${hf_token}" && "${hf_token}" != "null" ]]; then
     mkdir -p "$(dirname "${TOKEN_FILE}")"
     printf '%s' "${hf_token}" > "${TOKEN_FILE}"
     chmod 600 "${TOKEN_FILE}"
@@ -104,6 +110,33 @@ installed_files() {
     ' "$(resolve_spec "${pkg}")"
 }
 
+# Voice presets for models that ship voice embeddings, such as PocketTTS. They
+# are taken from the model spec, so they are known before the model is
+# downloaded. Embeddings that are not part of the package, such as a voice
+# that was downloaded for a model without voices, are taken from the disk.
+voice_presets() {
+    local pkg="$1"
+    local target_dir="$2"
+    local result='{}'
+    local relative
+    local name
+    while IFS= read -r relative; do
+        case "${relative}" in
+            embeddings/*.safetensors)
+                name="$(basename "${relative}" .safetensors)"
+                result="$(jq --arg n "${name}" --arg p "${target_dir}/${relative}" \
+                    '. + {($n): {options: {voice_embedding_file: $p}}}' <<< "${result}")"
+                ;;
+        esac
+    done < <(installed_files "${pkg}")
+    while IFS= read -r relative; do
+        name="$(basename "${relative}" .safetensors)"
+        result="$(jq --arg n "${name}" --arg p "${relative}" \
+            '. + {($n): {options: {voice_embedding_file: $p}}}' <<< "${result}")"
+    done < <(find "${target_dir}/embeddings" -maxdepth 1 -name '*.safetensors' -print 2> /dev/null || true)
+    printf '%s' "${result}"
+}
+
 # Run the model manager and log the download progress only every 5 percent,
 # it prints a line for every chunk otherwise.
 run_model_manager() {
@@ -141,11 +174,6 @@ download_catalog_model() {
         return 0
     fi
 
-    if [[ "${auto_install_model}" != "true" ]]; then
-        bashio::log.warning "Model '${pkg}' is missing in ${MODELS_DIR} and the automatic download is disabled."
-        return 1
-    fi
-
     bashio::log.info "Downloading model '${pkg}' into ${MODELS_DIR}. This can take a while."
     if run_model_manager install "${pkg}" --models-dir "${MODELS_DIR}"; then
         return 0
@@ -170,159 +198,21 @@ download_catalog_model() {
     return 1
 }
 
-# Voice presets for models that ship voice embeddings, such as PocketTTS. They
-# are taken from the model spec, so they are known before the model is
-# downloaded. Embeddings that are not part of the package, such as a voice
-# that was downloaded for a model without voices, are taken from the disk.
-voice_presets() {
-    local pkg="$1"
-    local target_dir="$2"
-    local result='{}'
-    local relative
-    local name
-    while IFS= read -r relative; do
-        case "${relative}" in
-            embeddings/*.safetensors)
-                name="$(basename "${relative}" .safetensors)"
-                result="$(jq --arg n "${name}" --arg p "${target_dir}/${relative}" \
-                    '. + {($n): {options: {voice_embedding_file: $p}}}' <<< "${result}")"
-                ;;
-        esac
-    done < <(installed_files "${pkg}")
-    while IFS= read -r relative; do
-        name="$(basename "${relative}" .safetensors)"
-        result="$(jq --arg n "${name}" --arg p "${relative}" \
-            '. + {($n): {options: {voice_embedding_file: $p}}}' <<< "${result}")"
-    done < <(find "${target_dir}/embeddings" -maxdepth 1 -name '*.safetensors' -print 2> /dev/null || true)
-    printf '%s' "${result}"
-}
-
-# Download a model from a Hugging Face URL. The URL must point to a file,
-# a repository URL is resolved to its only .gguf file.
-download_extra_model() {
-    local url="$1"
-    local destination="$2"
-    local -a auth=()
-
-    if [[ -n "${hf_token}" ]]; then
-        auth=(-H "Authorization: Bearer ${hf_token}")
-    fi
-
-    if [[ "${url}" != *"://"* ]]; then
-        url="${HF_BASE_URL}/${url#/}"
-    fi
-
-    if [[ "${url}" == *"/resolve/"* ]]; then
-        if [[ -s "${destination}" ]]; then
-            return 0
-        fi
-        bashio::log.info "Downloading ${url}"
-        if ! curl -fsSL ${auth[@]+"${auth[@]}"} -o "${destination}.part" "${url}"; then
-            rm -f "${destination}.part"
-            if [[ ${#auth[@]} -gt 0 ]]; then
-                # Hugging Face rejects public downloads with an invalid token,
-                # so try again without it.
-                bashio::log.warning "The download failed, retrying without the Hugging Face token."
-                if curl -fsSL -o "${destination}.part" "${url}"; then
-                    mv "${destination}.part" "${destination}"
-                    return 0
-                fi
-                rm -f "${destination}.part"
-            fi
-            bashio::log.warning "Could not download ${url}"
-            return 1
-        fi
-        mv "${destination}.part" "${destination}"
-        return 0
-    fi
-
-    # A repository URL: find the only .gguf file in it
-    local path="${url#*://*/}"
-    local owner="${path%%/*}"
-    local rest="${path#*/}"
-    local repo="${owner}/${rest%%/*}"
-
-    local listing
-    if ! listing="$(curl -fsSL ${auth[@]+"${auth[@]}"} "${HF_BASE_URL}/api/models/${repo}")"; then
-        bashio::log.warning "Could not read the repository ${repo}"
-        return 1
-    fi
-
-    local file
-    file="$(jq -r '[.siblings[]?.rfilename | select(endswith(".gguf"))] | if length == 1 then .[0] else empty end' <<< "${listing}")"
-    if [[ -z "${file}" ]]; then
-        bashio::log.warning "The repository ${repo} does not contain exactly one .gguf file. Use the full file URL instead."
-        return 1
-    fi
-
-    download_extra_model "${url%/}/resolve/main/${file}" "${destination}"
-}
-
-# Models that were added by URL in the app configuration
-pending_catalog_downloads=()
-pending_extra_downloads=()
-custom_models='[]'
-if [[ -n "${extra_models_json}" && "${extra_models_json}" != "null" ]]; then
-    extra_count="$(jq 'length' <<< "${extra_models_json}" 2> /dev/null || echo 0)"
-    for (( index = 0; index < extra_count; index++ )); do
-        extra_family="$(jq -r --argjson i "${index}" '.[$i].family // empty' <<< "${extra_models_json}")"
-        extra_task="$(jq -r --argjson i "${index}" '.[$i].task // empty' <<< "${extra_models_json}")"
-        extra_url="$(jq -r --argjson i "${index}" '.[$i].url // empty' <<< "${extra_models_json}")"
-
-        if [[ -z "${extra_family}" || -z "${extra_task}" || -z "${extra_url}" ]]; then
-            continue
-        fi
-
-        file_name="${extra_url##*/}"
-        extra_id="${file_name%.*}"
-        extra_id="${extra_id//[^A-Za-z0-9._-]/_}"
-        extra_path="${CUSTOM_DIR}/${file_name}"
-
-        if [[ ! -s "${extra_path}" ]]; then
-            pending_extra_downloads+=("${extra_url}|${extra_path}")
-        fi
-
-        extra_spec=""
-        if [[ -f "${SPEC_DIR}/${extra_family}.json" ]]; then
-            extra_spec="${SPEC_DIR}/${extra_family}.json"
-        fi
-
-        custom_models="$(jq --arg id "${extra_id}" --arg family "${extra_family}" \
-            --arg task "${extra_task}" --arg path "${extra_path}" \
-            --arg spec "${extra_spec}" \
-            '. + [{id: $id, family: $family, path: $path, task: $task, mode: "offline", lazy: true}
-                  + (if $spec == "" then {} else {model_spec_override: $spec} end)]' <<< "${custom_models}")"
-        bashio::log.info "Extra model ${extra_id} (${extra_family}) from ${extra_path}"
-    done
-fi
-
-resolve_model "${model}"
+resolve_model "${speech_to_text_model}"
 asr_family="${MODEL_FAMILY}"
 asr_path="${MODEL_FILE}"
-pending_catalog_downloads+=("${model}")
+pending_catalog_downloads=("${speech_to_text_model}")
 
-use_tts="false"
-tts_family=""
-tts_path=""
-tts_presets='{}'
-if [[ "${enable_tts}" == "true" ]]; then
-    resolve_model "${tts_model}"
-    tts_family="${MODEL_FAMILY}"
-    tts_path="${MODEL_FILE}"
-    # The text-to-speech model needs a voice. Models that do not ship one get
-    # the voices of their language downloaded, so the synthesis works right
-    # away.
-    /usr/local/bin/ensure_tts_voices.sh "${tts_model}" "$(option 'tts_voice')" || \
-        bashio::log.warning "No voice is available for the model '${tts_model}'. The synthesis may fail."
-    tts_presets="$(voice_presets "${tts_model}" "${MODEL_DIR}")"
-    pending_catalog_downloads+=("${tts_model}")
-    use_tts="true"
-fi
+# The models of the text-to-speech family. Every language of the family is
+# served, the ones that are not on the disk are downloaded when they are used.
+jq_program='
+    split("\n") | map(select(length > 0)) | map(split("|"))
+    | map({id: .[0], family: "pocket_tts", path: .[2], task: "tts", mode: "offline", lazy: true})
+'
+tts_models="$(/usr/local/bin/tts_family_models.sh "${tts_family}" | jq -R -s "${jq_program}")"
 
-bashio::log.info "ASR model '${model}' (${asr_family}) from ${asr_path}"
-if [[ "${use_tts}" == "true" ]]; then
-    bashio::log.info "TTS model '${tts_model}' (${tts_family}) from ${tts_path}"
-fi
+bashio::log.info "ASR model '${speech_to_text_model}' (${asr_family}) from ${asr_path}"
+bashio::log.info "TTS family '${tts_family}' with $(jq 'length' <<< "${tts_models}") model(s)"
 
 # Fall back to the CPU backend when no Vulkan device is available
 if [[ "${backend}" == "vulkan" ]]; then
@@ -338,15 +228,10 @@ jq -n \
     --arg backend "${backend}" \
     --argjson threads "${threads}" \
     --argjson max_loaded "${max_loaded_models}" \
-    --arg asr_id "${model}" \
+    --arg asr_id "${speech_to_text_model}" \
     --arg asr_family "${asr_family}" \
     --arg asr_path "${asr_path}" \
-    --arg tts_id "${tts_model}" \
-    --arg tts_family "${tts_family}" \
-    --arg tts_path "${tts_path}" \
-    --argjson tts_presets "${tts_presets}" \
-    --argjson use_tts "${use_tts}" \
-    --argjson custom_models "${custom_models}" \
+    --argjson tts_models "${tts_models}" \
     '{
         host: $host,
         port: $port,
@@ -359,25 +244,16 @@ jq -n \
         ui_management: true,
         models: (
             [{ id: $asr_id, family: $asr_family, path: $asr_path, task: "asr", mode: "offline", lazy: true }]
-            + (if $use_tts then
-                [({ id: $tts_id, family: $tts_family, path: $tts_path, task: "tts", mode: "offline", lazy: true }
-                   + (if ($tts_presets | length) > 0
-                      then { voice_presets: $tts_presets, default_voice_preset: ($tts_presets | keys[0]) }
-                      else {} end))]
-                else [] end)
-            + $custom_models
+            + $tts_models
         )
     }' > "${CONFIG_DIR}/server.json"
 
 # Download the models in the background. The server starts right away and
-# loads a model on demand, so a slow download does not hold up the start of the
-# app. The Supervisor allows an app 120 seconds to report that it started.
+# loads a model on demand, so a slow download does not hold up the start of
+# the app. The Supervisor allows an app 120 seconds to report that it started.
 (
     for pkg in "${pending_catalog_downloads[@]}"; do
         download_catalog_model "${pkg}" || true
-    done
-    for entry in "${pending_extra_downloads[@]}"; do
-        download_extra_model "${entry%%|*}" "${entry##*|}" || true
     done
 ) &
 

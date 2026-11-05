@@ -11,18 +11,12 @@
 
 | Option | Default | Description |
 | --- | --- | --- |
-| `model` | `qwen3_asr_0_6b_q8_0` | The speech-to-text model to use. It is downloaded on the first start. |
+| `speech_to_text_model` | `qwen3_asr_0_6b_q8_0` | The speech-to-text model to use. It is downloaded on the first start. |
 | `backend` | `vulkan` | The inference backend to use. `vulkan` uses the GPU, `cpu` uses the processor. |
 | `threads` | `4` | The number of CPU threads used for inference. |
 | `max_loaded_models` | `2` | How many models may stay loaded in memory at the same time. |
-| `auto_install_model` | `true` | Download the selected model automatically when it is missing. |
-| `enable_tts` | `true` | Enable the Wyoming text-to-speech bridge and the text-to-speech model. |
-| `tts_model` | `pocket_tts_german_q8_0` | The text-to-speech model to use. PocketTTS is available in several languages, every one of them is around 125 MB. It is downloaded on the first start when text-to-speech is enabled. |
-| `asr_language` | `de` | The language hint sent with the transcription request. With `auto` the model decides and the service is offered for every language the model supports. |
-| `tts_voice` | `Anna` | The name of the voice used for speech synthesis. |
-| `tts_language` | `auto` | The language that the text-to-speech bridge reports to Home Assistant, so it can pick the engine for a pipeline. `auto` derives it from the text-to-speech model. |
+| `tts_family` | `pocket_tts` | The model family used for speech synthesis. The Wyoming text-to-speech bridge offers every language of the family. A model is downloaded when it is used for the first time. |
 | `hf_token` | (empty) | A Hugging Face access token. It is needed for restricted or gated repositories and is used for every download. |
-| `extra_models` | (empty) | Additional models from a Hugging Face url. Use **Add item** to add more than one. |
 
 ## Models
 
@@ -30,7 +24,7 @@ The selected model is downloaded on the first start into `/share/audio_cpp/model
 
 The download runs in the background, so the app is ready right away. The model is loaded when it is used for the first time, which takes a moment longer while the download is still running.
 
-Every model that this build can load is listed in the `model` and `tts_model` options. The tables below show how large the download is.
+Every model that this build can load is listed in the `speech_to_text_model` option, the text-to-speech models are in the `tts_family` option. The tables below show how large the download is.
 
 ### Speech to text
 
@@ -95,25 +89,13 @@ Citrine is English only. Whisper-style models from llama.cpp or whisper.cpp cann
 
 ## Adding models
 
-There are three ways to get a model onto the app.
+There are two ways to get a model onto the app.
 
-**From the built-in list.** The `model` and `tts_model` options pick a model from the list of the models that audio.cpp publishes. The model is downloaded on the first start into `/share/audio_cpp/models` and stays there over restarts and updates.
+**From the built-in list.** The `speech_to_text_model` option picks a model from the list of the models that audio.cpp publishes. The model is downloaded on the first start into `/share/audio_cpp/models` and stays there over restarts and updates.
+
+The text-to-speech works with a model family. The `tts_family` option picks the family, and the model of the language that is used is downloaded when it is needed for the first time. The models are stored in `/share/audio_cpp/models` as well.
 
 **From the web interface.** The app has a web interface with a model manager. It is reachable from the app page through **Open Web UI**, and it is served through the Home Assistant ingress, so it needs no separate login. There you can install models from the same built-in list, upload voice files and delete models. The models it installs are stored in `/share/audio_cpp/models` as well.
-
-**By URL.** The `extra_models` option adds models from a Hugging Face url. Use **Add item** in the form for every model you want, and fill in the three fields:
-
-- `family` is the audio.cpp model family. Only the families that are compiled into this build can be loaded. They are the families of the models in the built-in list.
-- `task` is what the model does, for example `asr` for speech to text or `tts` for text to speech.
-- `url` points to a `.gguf` file on Hugging Face. A link to the repository works too when it holds exactly one `.gguf` file.
-
-An entry looks like this:
-
-    family: citrinet_asr
-    task: asr
-    url: https://huggingface.co/owner/repository/resolve/main/model-q8_0.gguf
-
-The models are downloaded on the next start of the app and then show up in the web interface and in the API. The id of a model is its file name without the extension, and you use that id as the `model` value in a request.
 
 The same applies to the Vulkan variant, where the models can also run on the GPU.
 
@@ -129,7 +111,7 @@ Transcribe an audio file:
 
 ```
 curl -X POST http://<home-assistant>:8099/v1/audio/transcriptions \
-  -F model=citrinet_asr_q8_0 \
+  -F model=qwen3_asr_0_6b_q8_0 \
   -F language=en \
   -F file=@speech.wav
 ```
@@ -163,9 +145,10 @@ Notes:
 - The Wyoming text-to-speech bridge is idle until you enable text-to-speech in the options.
 - The Wyoming protocol bridge does not return word-level timestamps.
 - The two bridges are separate services. Home Assistant uses the speech-to-text service as the speech-to-text engine of an Assist pipeline and the text-to-speech service as the text-to-speech engine of the same pipeline. A service that does one of the two is not a voice assistant on its own, so it does not show up as a conversation agent.
-- The language of the service has to match the language of the pipeline, otherwise Home Assistant greys the engine out. The speech-to-text service reports the language from the `asr_language` option, the text-to-speech service the language from the `tts_language` option.
-- A speech-to-text model speaks more than one language. With `asr_language` set to `auto` the service reports all the languages of the model, so it can be used for a pipeline in any of them. A text-to-speech model speaks one language, so the service reports that one.
-- The PocketTTS models of the languages other than English do not ship a voice. The app downloads the voices of the language of the model from the model repository, the voice from the `tts_voice` option is downloaded right away and the other voices follow in the background. They are stored next to the model in `/share/audio_cpp/models` and are not downloaded again.
+- The language and the voice are picked in Home Assistant, not in the app options. The speech-to-text service reports the languages of the model, the text-to-speech service the languages of its voices.
+- The text-to-speech service offers the voices of the whole family. The model of a voice is downloaded when the voice is used for the first time, so the first request in a new language takes a while.
+- A speech-to-text model speaks more than one language, the service reports all of them, so it can be used for a pipeline in any of them. The language of a request comes from Home Assistant.
+- The PocketTTS models of the languages other than English do not ship the voices. The app downloads all the voices of the language of the model from the model repository before the bridge starts. They are stored next to the model in `/share/audio_cpp/models` and are not downloaded again. Every installed model is offered with its voices, so the languages of the installed models are available in Home Assistant.
 
 ## GPU support
 

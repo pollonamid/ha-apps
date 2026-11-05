@@ -1,7 +1,8 @@
+---
 configuration:
-  model:
-    name: Model
-    description: The speech-to-text model to use. It is downloaded on the first start. Larger models are more accurate but need more memory.
+  speech_to_text_model:
+    name: Speech-to-text model
+    description: The speech-to-text model to use. It is downloaded on the first start.
   backend:
     name: Backend
     description: The inference backend to use. The Vulkan backend needs a GPU and falls back to the CPU when no device is found.
@@ -11,37 +12,13 @@ configuration:
   max_loaded_models:
     name: Maximum loaded models
     description: How many models may stay loaded in memory at the same time.
-  auto_install_model:
-    name: Automatic model download
-    description: Download the selected model automatically when it is missing.
-  enable_tts:
-    name: Enable text-to-speech
-    description: Enable the Wyoming text-to-speech bridge and the text-to-speech model.
-  tts_model:
-    name: Text-to-speech model
-    description: The text-to-speech model to use. It is downloaded on the first start when text-to-speech is enabled.
-  asr_language:
-    name: Language
-    description: The language hint sent with the transcription request. Use "auto" to let the model decide, the service is then offered for every language the model supports.
-  tts_voice:
-    name: Voice
-    description: The name of the voice used for speech synthesis.
-  tts_language:
-    name: Voice language
-    description: The language that the text-to-speech bridge reports, so Home Assistant can pick the engine for a pipeline. "auto" derives it from the text-to-speech model.
+  tts_family:
+    name: Text-to-speech family
+    description: The model family used for speech synthesis. The Wyoming text-to-speech bridge offers every language of the family. A model is downloaded when it is used for the first time.
   hf_token:
     name: Hugging Face token
     description: A Hugging Face access token, needed for restricted or gated repositories. It is stored in the app and used for every download, also for the models installed from the web interface.
-  extra_models:
-    name: Extra models
-    description: Additional models, downloaded from Hugging Face. Use "Add item" to add more than one. They are downloaded on the next start and are then available in the web interface and the API.
-    fields:
-      family:
-        name: Family
-        description: The audio.cpp model family.
-      task:
-        name: Task
-        description: What the model does, for example asr for speech to text.
-      url:
-        name: Url
-        description: The url of the .gguf file on Hugging Face.
+network:
+  "8099/tcp": The port for the Audio.cpp HTTP API (OpenAI-compatible).
+  "11301/tcp": The port for the Wyoming speech-to-text.
+  "11201/tcp": The port for the Wyoming text-to-speech.

@@ -1,4 +1,12 @@
 <!-- https://contributors.home-assistant.io/apps/guides/presentation/#changelog -->
+## 0.10.0
+
+- The app options are reduced to the speech-to-text model, the backend, the threads, the number of loaded models, the text-to-speech family and the Hugging Face token. The models are always downloaded automatically and the text-to-speech is always on.
+- The option `model` is now `speech_to_text_model`.
+- The text-to-speech is configured with a model family instead of a single model. The Wyoming text-to-speech service offers the voices of every language of the family, the language and the voice are picked in Home Assistant.
+- A text-to-speech model that is not on the disk is downloaded when its voice is used for the first time.
+- The speech-to-text service reports the languages of the model, the text-to-speech service the languages of its voices. The language of a request comes from Home Assistant.
+
 ## 0.9.9
 
 - Report all the languages of the speech-to-text model when the language is set to `auto`, so Home Assistant can use the service for a pipeline in any of them.

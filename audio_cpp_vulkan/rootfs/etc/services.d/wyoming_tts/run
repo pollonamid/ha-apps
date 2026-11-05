@@ -1,6 +1,11 @@
 #!/usr/bin/with-contenv bashio
 # ==============================================================================
 # Start the Wyoming text-to-speech bridge
+# ==============================================================================
+# The bridge offers the voices of the whole model family, so Home Assistant
+# can use every language of it. The model of a voice is downloaded when the
+# voice is used for the first time, the proxy in front of audio.cpp does it.
+# ==============================================================================
 # s6-overlay docs: https://github.com/just-containers/s6-overlay
 # ==============================================================================
 set -euo pipefail
@@ -8,7 +13,9 @@ set -euo pipefail
 readonly CONFIG_DIR="/config"
 readonly MODELS_DIR="/share/audio_cpp/models"
 readonly SPEC_DIR="/app/model_specs"
+readonly TOKEN_FILE="/root/.cache/huggingface/token"
 readonly APP_PORT="8099"
+readonly PROXY_PORT="8098"
 readonly TTS_PORT="11201"
 
 export PYTHONPATH="/app/wyoming"
@@ -19,73 +26,67 @@ option() {
     bashio::config "${1}" 2> /dev/null || true
 }
 
-if [[ "$(option 'enable_tts')" != "true" ]]; then
-    bashio::log.info "Text-to-speech is disabled. Enable it in the app options to use the Wyoming TTS bridge."
-    exec sleep infinity
+tts_family="$(option 'tts_family')"
+if [[ -z "${tts_family}" || "${tts_family}" == "null" ]]; then
+    tts_family="pocket_tts"
 fi
 
-tts_model="$(option 'tts_model')"
-tts_voice="$(option 'tts_voice')"
-tts_language="$(option 'tts_language')"
-
-# The language of the voice is reported to Home Assistant, so it can pick the
-# engine for a pipeline. It is derived from the model when it is set to auto.
-# bashio::config prints null for an option that is not set.
-if [[ -z "${tts_language}" || "${tts_language}" == "auto" || "${tts_language}" == "null" ]]; then
-    case "${tts_model}" in
-        pocket_tts_english_*) tts_language="en" ;;
-        pocket_tts_german_*) tts_language="de" ;;
-        pocket_tts_french_*) tts_language="fr" ;;
-        pocket_tts_italian_*) tts_language="it" ;;
-        pocket_tts_portuguese_*) tts_language="pt" ;;
-        pocket_tts_spanish_*) tts_language="es" ;;
-        *) tts_language="en" ;;
-    esac
+# Every voice of the family with its language, its model and the files that
+# belong to it.
+voices="$(/usr/local/bin/tts_family_voices.sh "${tts_family}")"
+if [[ -z "${voices}" ]]; then
+    bashio::log.warning "The family '${tts_family}' has no voices."
 fi
 
-# The bridge needs a voice embedding for the model. Models that do not ship
-# one get the voices of their language downloaded, so the synthesis works
-# right away.
-/usr/local/bin/ensure_tts_voices.sh "${tts_model}" "${tts_voice}" || \
-    bashio::log.warning "No voice '${tts_voice}' is available for the model '${tts_model}'. The synthesis may fail."
+# The name of a voice has to be unique, so the language is added to the voices
+# that exist in more than one language.
+jq_program='
+    split("\n") | map(select(length > 0)) | map(split("|"))
+    | map({name: .[0], language: .[1], model: .[2], embedding: .[4]}) as $voices
+    | ($voices | group_by(.name) | map({key: .[0].name, value: length}) | from_entries) as $counts
+    | $voices
+    | map(.name = (if $counts[.name] > 1 then "\(.name) (\(.language))" else .name end))
+'
+voices_json="$(printf '%s' "${voices}" | jq -R -s "${jq_program}")"
 
-target_dir=""
-for candidate in "${SPEC_DIR}"/*.json; do
-    if jq -e --arg id "${tts_model}" '.packages[]? | select(.id == $id)' "${candidate}" > /dev/null 2>&1; then
-        target_dir="$(jq -r --arg id "${tts_model}" '.packages[] | select(.id == $id) | .target_directory' "${candidate}")"
-        break
-    fi
-done
-
-voice_file=""
-if [[ -n "${target_dir}" ]]; then
-    for candidate in "${MODELS_DIR}/${target_dir}"/embeddings/*.safetensors; do
-        [[ -e "${candidate}" ]] || continue
-        if [[ "$(basename "${candidate}" .safetensors)" == "${tts_voice,,}" ]]; then
-            voice_file="${candidate}"
-            break
-        fi
-    done
-fi
-
-jq -n \
-    --arg uri "http://127.0.0.1:${APP_PORT}" \
-    --arg tts_uri "tcp://0.0.0.0:${TTS_PORT}" \
-    --arg model "${tts_model}" \
-    --arg voice "${tts_voice}" \
-    --arg language "${tts_language}" \
-    --arg embedding "${voice_file}" \
-    '{
+config_program='
+    {
         audiocpp_uri: $uri,
         log_level: "INFO",
         tts_uri: $tts_uri,
-        tts_voices: [
-            ({ model: $model, name: $voice, language: $language }
-             + (if $embedding == "" then {} else { options: { voice_embedding_file: $embedding } } end))
-        ]
-    }' > "${CONFIG_DIR}/wyoming_tts.json"
+        tts_voices: (
+            $voices
+            | map({
+                model: .model,
+                name: .name,
+                language: .language,
+                options: { voice_embedding_file: .embedding }
+              })
+        )
+    }
+'
+jq -n \
+    --arg uri "http://127.0.0.1:${PROXY_PORT}" \
+    --arg tts_uri "tcp://0.0.0.0:${TTS_PORT}" \
+    --argjson voices "${voices_json}" \
+    "${config_program}" > "${CONFIG_DIR}/wyoming_tts.json"
 
-bashio::log.info "Starting the Wyoming TTS bridge on port ${TTS_PORT}"
+# The proxy installs the model of a voice when it is used for the first time.
+repo="$(jq -r '.package_defaults.download.repo // empty' "${SPEC_DIR}/${tts_family}.json")"
+revision="$(jq -r '.package_defaults.download.revision // "main"' "${SPEC_DIR}/${tts_family}.json")"
+
+env \
+    MODELS_DIR="${MODELS_DIR}" \
+    TOKEN_FILE="${TOKEN_FILE}" \
+    HF_REPO="${repo}" \
+    HF_REVISION="${revision}" \
+    LISTEN_HOST="127.0.0.1" \
+    LISTEN_PORT="${PROXY_PORT}" \
+    TARGET_HOST="127.0.0.1" \
+    TARGET_PORT="${APP_PORT}" \
+    /opt/wyoming/bin/python -u /usr/local/bin/model_proxy.py &
+
+bashio::log.info "Starting the Wyoming TTS bridge on port ${TTS_PORT} with $(jq 'length' <<< "${voices_json}") voice(s)"
 # Unbuffered, so the log shows up right away.
 exec /opt/wyoming/bin/python -u -m wyoming_audiocpp_tts \
     --config "${CONFIG_DIR}/wyoming_tts.json" \
