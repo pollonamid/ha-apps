@@ -2,40 +2,14 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
     "config:recommended",
-    ":dependencyDashboard"
+    ":dependencyDashboard",
+    "customManagers:dockerfileVersions"
   ],
   "enabledManagers": [
     "custom.regex",
     "dockerfile",
     "github-actions",
     "pip_requirements"
-  ],
-  "customManagers": [
-    {
-      "customType": "regex",
-      "managerFilePatterns": [
-        "/(^|/)Dockerfile$/"
-      ],
-      "matchStrings": [
-        "ARG AUDIOCPP_VERSION=(?<currentValue>[^\\n]+)"
-      ],
-      "depNameTemplate": "0xShug0/audio.cpp",
-      "datasourceTemplate": "github-releases",
-      "versioningTemplate": "semver",
-      "extractVersionTemplate": "^v(?<version>.+)$"
-    },
-    {
-      "customType": "regex",
-      "managerFilePatterns": [
-        "/(^|/)Dockerfile$/"
-      ],
-      "matchStrings": [
-        "ARG WYO_VERSION=(?<currentValue>[^\\n]+)"
-      ],
-      "depNameTemplate": "m-abs/wyoming_audiocpp",
-      "datasourceTemplate": "github-tags",
-      "versioningTemplate": "loose"
-    }
   ],
   "packageRules": [
     {
@@ -46,10 +20,21 @@
       "groupName": "GitHub Actions"
     },
     {
-      "description": "Group the versions of the audio.cpp build",
+      "description": "Base images are pinned through renovate annotations",
       "matchManagers": [
-        "custom.regex",
         "dockerfile"
+      ],
+      "matchPackageNames": [
+        "ubuntu",
+        "ghcr.io/home-assistant/base-ubuntu"
+      ],
+      "enabled": false
+    },
+    {
+      "description": "Group the versions of the audio.cpp build",
+      "matchPackageNames": [
+        "0xShug0/audio.cpp",
+        "m-abs/wyoming_audiocpp"
       ],
       "groupName": "audio.cpp build dependencies"
     }

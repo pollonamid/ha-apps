@@ -1,12 +1,17 @@
 # syntax=docker/dockerfile:1
 # Audio.cpp - local audio inference server for Home Assistant
 # Upstream: https://github.com/0xShug0/audio.cpp (Apache-2.0)
-ARG BUILD_FROM=ghcr.io/home-assistant/base-ubuntu:24.04
+# renovate: datasource=docker depName=ubuntu
+ARG UBUNTU_VERSION=24.04
+# renovate: datasource=docker depName=ghcr.io/home-assistant/base-ubuntu
+ARG BASE_UBUNTU_VERSION=24.04
+# renovate: datasource=github-releases depName=0xShug0/audio.cpp versioning=semver extractVersion=^v(?<version>.+)$
 ARG AUDIOCPP_VERSION=0.9.3
 ARG AUDIOCPP_MODELS=citrinet_asr,qwen3_asr,canary_asr,sense_asr,moonshine_asr,parakeet_tdt,whistle_asr,niagara_asr,granite5asr,hviske_asr,hviske_asr_v6,owsm,nemotron_asr,kroko_asr,fun_asr_nano,pocket_tts
+# renovate: datasource=github-tags depName=m-abs/wyoming_audiocpp versioning=loose
 ARG WYO_VERSION=0.2.1-rc2
 
-FROM ubuntu:24.04 AS build
+FROM ubuntu:${UBUNTU_VERSION} AS build
 ARG AUDIOCPP_VERSION
 ARG AUDIOCPP_MODELS
 ARG WYO_VERSION
@@ -55,8 +60,7 @@ RUN cmake -S . -B build \
 # Runtime shared libraries (per-ISA ggml CPU backends) must sit next to the binary
 RUN mkdir -p /app && find build -name "*.so*" -exec cp -P {} /app/ \;
 
-FROM ${BUILD_FROM}
-ARG BUILD_FROM
+FROM ghcr.io/home-assistant/base-ubuntu:${BASE_UBUNTU_VERSION}
 ARG AUDIOCPP_VERSION
 ENV DEBIAN_FRONTEND=noninteractive
 ENV PYTHONPATH="/app/wyoming" \
