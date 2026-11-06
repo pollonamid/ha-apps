@@ -1,4 +1,9 @@
 <!-- https://contributors.home-assistant.io/apps/guides/presentation/#changelog -->
+## 0.10.1
+
+- Update audio.cpp to 0.9.4. The Parakeet models work with stereo audio and with audio that is not 16 kHz now, the timestamps of the Qwen3 models are scaled to the sample rate of the audio and the Nemotron Transcribe model needs less memory on the CPU.
+- Update the base image to Ubuntu 26.04.
+
 ## 0.10.0
 
 - The app options are reduced to the speech-to-text model, the backend, the threads, the number of loaded models, the text-to-speech family and the Hugging Face token. The models are always downloaded automatically and the text-to-speech is always on.
