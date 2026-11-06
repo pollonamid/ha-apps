@@ -6,7 +6,7 @@ ARG UBUNTU_VERSION=24.04
 # renovate: datasource=docker depName=ghcr.io/home-assistant/base-ubuntu
 ARG BASE_UBUNTU_VERSION=26.04
 # renovate: datasource=github-releases depName=0xShug0/audio.cpp versioning=semver extractVersion=^v(?<version>.+)$
-ARG AUDIOCPP_VERSION=0.9.3
+ARG AUDIOCPP_VERSION=0.9.4
 ARG AUDIOCPP_MODELS=citrinet_asr,qwen3_asr,canary_asr,sense_asr,moonshine_asr,parakeet_tdt,whistle_asr,niagara_asr,granite5asr,hviske_asr,hviske_asr_v6,owsm,nemotron_asr,kroko_asr,fun_asr_nano,pocket_tts
 # renovate: datasource=github-tags depName=m-abs/wyoming_audiocpp versioning=loose
 ARG WYO_VERSION=0.2.1-rc2
