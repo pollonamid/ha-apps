@@ -8,14 +8,18 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   renovate:
     name: Run Renovate
     runs-on: ubuntu-latest
+    env:
+      # The GITHUB_TOKEN cannot list the repositories, so the target
+      # repository is configured explicitly.
+      RENOVATE_REPOSITORIES: pollonamid/ha-apps
     permissions:
-      contents: read
+      contents: write
       issues: write
       pull-requests: write
     steps:
