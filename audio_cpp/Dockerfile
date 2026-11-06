@@ -2,7 +2,7 @@
 # Audio.cpp - local audio inference server for Home Assistant
 # Upstream: https://github.com/0xShug0/audio.cpp (Apache-2.0)
 # renovate: datasource=docker depName=ubuntu
-ARG UBUNTU_VERSION=24.04
+ARG UBUNTU_VERSION=26.04
 # renovate: datasource=docker depName=ghcr.io/home-assistant/base-ubuntu
 ARG BASE_UBUNTU_VERSION=24.04
 # renovate: datasource=github-releases depName=0xShug0/audio.cpp versioning=semver extractVersion=^v(?<version>.+)$
